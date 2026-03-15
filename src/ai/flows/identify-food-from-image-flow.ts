@@ -22,11 +22,11 @@ export type IdentifyFoodFromImageInput = z.infer<typeof IdentifyFoodFromImageInp
 const IdentifyFoodFromImageOutputSchema = z.object({
   identification: z.string().describe('The identified food item.'),
   nutritionalInfo: z.object({
-    calories: z.number().describe('Total calories in kcal.'),
-    protein: z.number().describe('Protein content in grams.'),
-    carbohydrates: z.number().describe('Carbohydrate content in grams.'),
-    fat: z.number().describe('Total fat content in grams.'),
-    sugar: z.number().describe('Sugar content in grams.'),
+    calories: z.coerce.number().describe('Total calories in kcal.'),
+    protein: z.coerce.number().describe('Protein content in grams.'),
+    carbohydrates: z.coerce.number().describe('Carbohydrate content in grams.'),
+    fat: z.coerce.number().describe('Total fat content in grams.'),
+    sugar: z.coerce.number().describe('Sugar content in grams.'),
     vitamins: z
       .array(z.string())
       .describe('A list of key vitamins present.'),
@@ -78,7 +78,15 @@ const identifyFoodFromImageFlow = ai.defineFlow(
     outputSchema: IdentifyFoodFromImageOutputSchema,
   },
   async (input) => {
-    const { output } = await identifyFoodFromImagePrompt(input);
-    return output!;
+    try {
+      const { output } = await identifyFoodFromImagePrompt(input);
+      if (!output) {
+        throw new Error("Failed to identify food from image.");
+      }
+      return output;
+    } catch (error) {
+      console.error("Genkit identify food from image error:", error);
+      throw error;
+    }
   }
 );

@@ -4,6 +4,7 @@
  *
  * - searchFoods - A function that handles searching for food items via AI.
  * - FoodItemInfo - The structured data for a single food item.
+ * - getFoodDetails - A function that handles fetching detailed information for a specific food item.
  */
 
 import { ai } from '@/ai/genkit';
@@ -12,11 +13,11 @@ import { z } from 'genkit';
 const FoodItemSchema = z.object({
   id: z.string().describe('A URL-safe slug or identifier for the food item.'),
   name: z.string().describe('Common name of the food item.'),
-  calories: z.number().describe('Calories per 100g or serving.'),
-  protein: z.number().describe('Protein in grams.'),
-  carbohydrates: z.number().describe('Total carbohydrates in grams.'),
-  fat: z.number().describe('Total fat in grams.'),
-  sugar: z.number().describe('Sugar content in grams.'),
+  calories: z.coerce.number().describe('Calories per 100g or serving.'),
+  protein: z.coerce.number().describe('Protein in grams.'),
+  carbohydrates: z.coerce.number().describe('Total carbohydrates in grams.'),
+  fat: z.coerce.number().describe('Total fat in grams.'),
+  sugar: z.coerce.number().describe('Sugar content in grams.'),
   vitamins: z.array(z.string()).describe('List of key vitamins.'),
   minerals: z.array(z.string()).describe('List of key minerals.'),
   ingredients: z.array(z.string()).describe('Probable ingredients or components.'),
@@ -27,8 +28,15 @@ const FoodItemSchema = z.object({
 
 export type FoodItemInfo = z.infer<typeof FoodItemSchema>;
 
-const FoodSearchOutputSchema = z.array(FoodItemSchema);
+const FoodSearchOutputSchema = z.object({
+  foods: z.array(FoodItemSchema).describe('A list of matching food items.')
+});
 
+/**
+ * Searches for food items based on a query.
+ * @param query The search query.
+ * @returns A promise that resolves to an array of food items.
+ */
 export async function searchFoods(query: string): Promise<FoodItemInfo[]> {
   return searchFoodsFlow(query);
 }
@@ -51,14 +59,24 @@ const searchFoodsFlow = ai.defineFlow(
   {
     name: 'searchFoodsFlow',
     inputSchema: z.string(),
-    outputSchema: FoodSearchOutputSchema,
+    outputSchema: z.array(FoodItemSchema),
   },
   async (query) => {
-    const { output } = await foodSearchPrompt(query);
-    return output || [];
+    try {
+      const { output } = await foodSearchPrompt(query);
+      return output?.foods || [];
+    } catch (error) {
+      console.error("Genkit food search prompt error:", error);
+      return [];
+    }
   }
 );
 
+/**
+ * Fetches comprehensive nutritional and health data for a specific food item.
+ * @param idOrName The ID or name of the food item.
+ * @returns A promise that resolves to the food item details, or null if not found.
+ */
 export async function getFoodDetails(idOrName: string): Promise<FoodItemInfo | null> {
   return getFoodDetailsFlow(idOrName);
 }
@@ -70,10 +88,15 @@ const getFoodDetailsFlow = ai.defineFlow(
     outputSchema: FoodItemSchema.nullable(),
   },
   async (idOrName) => {
-    const { output } = await ai.generate({
-      prompt: `Provide comprehensive nutritional and health data for the specific food item: "${idOrName}".`,
-      output: { schema: FoodItemSchema },
-    });
-    return output || null;
+    try {
+      const { output } = await ai.generate({
+        prompt: `Provide comprehensive nutritional and health data for the specific food item: "${idOrName}".`,
+        output: { schema: FoodItemSchema },
+      });
+      return output || null;
+    } catch (error) {
+      console.error("Genkit get food details error:", error);
+      return null;
+    }
   }
 );
