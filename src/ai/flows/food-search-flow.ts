@@ -18,11 +18,11 @@ const FoodItemSchema = z.object({
   carbohydrates: z.coerce.number().describe('Total carbohydrates in grams.'),
   fat: z.coerce.number().describe('Total fat in grams.'),
   sugar: z.coerce.number().describe('Sugar content in grams.'),
-  vitamins: z.array(z.string()).describe('List of key vitamins.'),
-  minerals: z.array(z.string()).describe('List of key minerals.'),
-  ingredients: z.array(z.string()).describe('Probable ingredients or components.'),
-  healthBenefits: z.array(z.string()).describe('List of health benefits.'),
-  risks: z.array(z.string()).describe('List of potential risks or allergens.'),
+  vitamins: z.array(z.string()).optional().default([]).describe('List of key vitamins.'),
+  minerals: z.array(z.string()).optional().default([]).describe('List of key minerals.'),
+  ingredients: z.array(z.string()).optional().default([]).describe('Probable ingredients or components.'),
+  healthBenefits: z.array(z.string()).optional().default([]).describe('List of health benefits.'),
+  risks: z.array(z.string()).optional().default([]).describe('List of potential risks or allergens.'),
   category: z.string().describe('General category (e.g., Fruit, Meat, Cooked Dish).'),
 });
 
@@ -45,6 +45,14 @@ const foodSearchPrompt = ai.definePrompt({
   name: 'foodSearchPrompt',
   input: { schema: z.string() },
   output: { schema: FoodSearchOutputSchema },
+  config: {
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+    ],
+  },
   prompt: `You are an expert nutritional database engine. Search for and provide detailed information for food items related to the query: "{{{this}}}".
 
 Requirements:
@@ -64,10 +72,19 @@ const searchFoodsFlow = ai.defineFlow(
   },
   async (query) => {
     try {
+      console.log(`Starting food search for: ${query}`);
       const { output } = await foodSearchPrompt(query);
-      return output?.foods || [];
-    } catch (error) {
-      console.error("Genkit food search prompt error:", error);
+      if (!output || !output.foods) {
+        console.warn("Genkit food search returned no output.");
+        return [];
+      }
+      return output.foods;
+    } catch (error: any) {
+      console.error("Genkit food search error:", error);
+      // Log more specific error info if available (e.g. auth errors)
+      if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('403')) {
+        console.error("CRITICAL: Gemini API Key appears to be invalid or lacks permissions.");
+      }
       return [];
     }
   }
@@ -90,14 +107,23 @@ const getFoodDetailsFlow = ai.defineFlow(
   },
   async (idOrName) => {
     try {
+      console.log(`Fetching detailed food info for: ${idOrName}`);
       const { output } = await ai.generate({
         prompt: `You are an expert nutritionist. Provide comprehensive, expert-verified nutritional and health data for the specific food item: "${idOrName}".
         If this is a complex dish or branded item with unknown exact data, provide your best professional estimate for its nutritional profile per 100g based on standard ingredients.`,
         output: { schema: FoodItemSchema },
+        config: {
+          safetySettings: [
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+          ],
+        },
       });
       return output || null;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Genkit get food details error:", error);
+      if (error.message?.includes('API_KEY_INVALID')) {
+        console.error("CRITICAL: Gemini API Key appears to be invalid.");
+      }
       return null;
     }
   }
