@@ -5,6 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Apple, History, Heart, Target, ChevronRight, Activity } from "lucide-react";
 import Link from "next/link";
 
