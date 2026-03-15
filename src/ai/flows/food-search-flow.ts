@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'kit';
 
 const FoodItemSchema = z.object({
   id: z.string().describe('A URL-safe slug or identifier for the food item.'),
@@ -53,15 +53,16 @@ const foodSearchPrompt = ai.definePrompt({
       { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
     ],
   },
-  prompt: `You are an expert nutritional database engine. Search for and provide detailed information for food items related to the query: "{{{this}}}".
+  prompt: `You are an expert nutritional database engine. 
+  
+  Search for and provide detailed information for up to 5 food items related to the query: "{{{this}}}".
 
-Requirements:
-1. Provide a list of up to 5 relevant matches.
-2. For each match, provide accurate estimated nutritional values per 100g.
-3. If exact data is unavailable, use your expert knowledge to provide your best professional estimate. NEVER say "data unavailable".
-4. Include vitamins, minerals, and health insights.
-5. Support raw ingredients, prepared snacks, and complex global cooked dishes.
-6. Ensure the 'id' is a lowercase, hyphenated version of the name.`,
+  IMPORTANT REQUIREMENTS:
+  1. Even if the query is a partial match or a complex dish, you MUST return at least one valid food item.
+  2. Provide accurate estimated nutritional values per 100g based on standard compositions.
+  3. Never return an empty list if there's any possible interpretation of the query as food.
+  4. Ensure 'id' is a lowercase, hyphenated string.
+  5. Include vitamins, minerals, and category information for all items.`,
 });
 
 const searchFoodsFlow = ai.defineFlow(
@@ -72,19 +73,23 @@ const searchFoodsFlow = ai.defineFlow(
   },
   async (query) => {
     try {
-      console.log(`Starting food search for: ${query}`);
+      console.log(`[Genkit] Searching foods for query: "${query}"`);
       const { output } = await foodSearchPrompt(query);
-      if (!output || !output.foods) {
-        console.warn("Genkit food search returned no output.");
+      
+      if (!output || !output.foods || output.foods.length === 0) {
+        console.warn(`[Genkit] No foods found for query: "${query}". AI returned empty list.`);
         return [];
       }
+
+      console.log(`[Genkit] Found ${output.foods.length} items for query: "${query}"`);
       return output.foods;
     } catch (error: any) {
-      console.error("Genkit food search error:", error);
-      // Log more specific error info if available (e.g. auth errors)
-      if (error.message?.includes('API_KEY_INVALID') || error.message?.includes('403')) {
-        console.error("CRITICAL: Gemini API Key appears to be invalid or lacks permissions.");
+      console.error("[Genkit] Food search fatal error:", error);
+      
+      if (error.message?.includes('API_KEY_INVALID') || error.status === 403) {
+        console.error("CRITICAL: The Gemini API Key is missing, invalid, or lacks permissions. Please check your environment variables (GEMINI_API_KEY).");
       }
+      
       return [];
     }
   }
@@ -107,10 +112,10 @@ const getFoodDetailsFlow = ai.defineFlow(
   },
   async (idOrName) => {
     try {
-      console.log(`Fetching detailed food info for: ${idOrName}`);
+      console.log(`[Genkit] Fetching detailed info for: "${idOrName}"`);
       const { output } = await ai.generate({
-        prompt: `You are an expert nutritionist. Provide comprehensive, expert-verified nutritional and health data for the specific food item: "${idOrName}".
-        If this is a complex dish or branded item with unknown exact data, provide your best professional estimate for its nutritional profile per 100g based on standard ingredients.`,
+        prompt: `You are a world-class nutritionist. Provide a comprehensive nutritional and health profile for: "${idOrName}". 
+        Provide expert-estimated values per 100g if exact lab data is unavailable.`,
         output: { schema: FoodItemSchema },
         config: {
           safetySettings: [
@@ -120,10 +125,7 @@ const getFoodDetailsFlow = ai.defineFlow(
       });
       return output || null;
     } catch (error: any) {
-      console.error("Genkit get food details error:", error);
-      if (error.message?.includes('API_KEY_INVALID')) {
-        console.error("CRITICAL: Gemini API Key appears to be invalid.");
-      }
+      console.error("[Genkit] Get food details error:", error);
       return null;
     }
   }

@@ -5,7 +5,7 @@ import { Navbar } from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X } from "lucide-react";
+import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FoodItemInfo } from "@/ai/flows/food-search-flow";
@@ -20,6 +20,7 @@ export default function SearchPage() {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
 
   // Debounce logic for suggestions
@@ -31,7 +32,7 @@ export default function SearchPage() {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 300);
+    }, 400);
 
     return () => clearTimeout(timer);
   }, [query]);
@@ -53,7 +54,7 @@ export default function SearchPage() {
       const response = await fetch(`/api/food-search?q=${encodeURIComponent(q)}`);
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(data.slice(0, 5)); // Limit to top 5 suggestions
+        setSuggestions(Array.isArray(data) ? data.slice(0, 5) : []);
         setShowSuggestions(true);
       }
     } catch (error) {
@@ -70,14 +71,19 @@ export default function SearchPage() {
     setShowSuggestions(false);
     setIsLoading(true);
     setHasSearched(true);
+    setError(null);
     
     try {
       const response = await fetch(`/api/food-search?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error("Search failed");
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || "The AI service is currently unavailable.");
+      }
       const data = await response.json();
-      setResults(data);
-    } catch (error) {
+      setResults(Array.isArray(data) ? data : []);
+    } catch (error: any) {
       console.error("Search error:", error);
+      setError(error.message || "Failed to retrieve food data. Please try again later.");
       setResults([]);
     } finally {
       setIsLoading(false);
@@ -88,6 +94,9 @@ export default function SearchPage() {
     setQuery("");
     setSuggestions([]);
     setShowSuggestions(false);
+    setError(null);
+    setHasSearched(false);
+    setResults([]);
   };
 
   return (
@@ -113,6 +122,7 @@ export default function SearchPage() {
                 />
                 {query && (
                   <button 
+                    type="button"
                     onClick={clearSearch}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                   >
@@ -166,25 +176,32 @@ export default function SearchPage() {
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 text-center">
                 <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                <p className="text-muted-foreground font-medium">Querying AI nutritional database...</p>
+                <p className="text-muted-foreground font-medium animate-pulse">Querying AI nutritional database...</p>
+              </div>
+            ) : error ? (
+              <div className="text-center py-16 bg-destructive/5 rounded-xl border border-destructive/20 border-dashed">
+                <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-destructive mb-2">Service Error</h3>
+                <p className="text-muted-foreground max-w-md mx-auto">{error}</p>
+                <Button variant="outline" className="mt-6" onClick={handleSearch}>Try Again</Button>
               </div>
             ) : results.length > 0 ? (
               results.map((item) => (
                 <Link key={item.id} href={`/food/${encodeURIComponent(item.name)}`}>
-                  <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md group rounded-xl overflow-hidden">
+                  <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md group rounded-xl overflow-hidden border-none bg-white">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
                       <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors">
                           <Utensils className="h-6 w-6" />
                         </div>
                         <div>
-                          <CardTitle className="text-lg">{item.name}</CardTitle>
+                          <CardTitle className="text-lg font-headline">{item.name}</CardTitle>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
-                            <span className="font-medium text-foreground">{item.calories} kcal</span>
+                            <span className="font-bold text-primary">{item.calories} kcal</span>
                             <span>P: {item.protein}g</span>
                             <span>C: {item.carbohydrates}g</span>
                             <span>F: {item.fat}g</span>
-                            <span className="text-xs uppercase tracking-wider bg-muted px-1.5 rounded">{item.category}</span>
+                            <span className="text-[10px] uppercase tracking-widest bg-muted px-2 py-0.5 rounded-full font-bold">{item.category}</span>
                           </div>
                         </div>
                       </div>
@@ -197,7 +214,7 @@ export default function SearchPage() {
               <div className="text-center py-20 bg-muted/10 rounded-xl border-2 border-dashed">
                 <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold">No foods found</h3>
-                <p className="text-muted-foreground">Try searching for something else like "Quinoa Salad" or "Tofu"</p>
+                <p className="text-muted-foreground">Try searching for something more specific like "Fresh Spinach" or "Lentil Soup"</p>
               </div>
             ) : (
               <div className="text-center py-20 bg-primary/5 rounded-xl border-2 border-dashed border-primary/20">
