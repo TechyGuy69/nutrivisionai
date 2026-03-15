@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, setDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Button } from '@/components/ui/button';
@@ -46,6 +46,7 @@ export default function OnboardingPage() {
 
     setDoc(docRef, profileData)
       .then(() => {
+        // Save ID to local storage to mark user as onboarded
         localStorage.setItem('nutrivision_userId', user.uid);
         router.push('/dashboard');
       })
@@ -70,17 +71,17 @@ export default function OnboardingPage() {
       <Card className="w-full max-w-lg shadow-2xl border-none animate-in fade-in zoom-in-95 duration-500">
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-2xl font-bold font-headline">Welcome to your health journey!</CardTitle>
-          <CardDescription>Let's personalize your experience to help you reach your goals.</CardDescription>
+          <CardDescription>Enter your details to generate your personalized health profile.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6 pt-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">What's your name?</Label>
+                <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
                   required
-                  placeholder="e.g. Alex"
+                  placeholder="Your name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
@@ -93,7 +94,7 @@ export default function OnboardingPage() {
                   required
                   min="1"
                   max="120"
-                  placeholder="e.g. 28"
+                  placeholder="Years"
                   value={formData.age}
                   onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                 />
@@ -163,7 +164,7 @@ export default function OnboardingPage() {
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <>
-                  Start Exploring <ArrowRight className="ml-2 h-5 w-5" />
+                  Create Profile <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
             </Button>

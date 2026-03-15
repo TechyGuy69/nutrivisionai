@@ -15,27 +15,26 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const handleAuth = async () => {
-      // 1. Check if user is already signed in via Firebase
+      // 1. Ensure user is signed in anonymously
       if (!isUserLoading && !user) {
-        // 2. If not, check localStorage for existing "guest" session
-        const storedUserId = localStorage.getItem('nutrivision_userId');
-        
         try {
-          // Firebase Anonymous Auth handles the "guest" identity stably
           await signInAnonymously(auth);
         } catch (error) {
           console.error("Auth initialization failed", error);
         }
       }
 
-      // 3. Handle redirection to onboarding if no profile exists
+      // 2. Handle redirection based on profile existence
       if (!isUserLoading && user) {
         const storedUserId = localStorage.getItem('nutrivision_userId');
         const isOnboarding = pathname === '/onboarding';
+        const isPublicPage = pathname === '/';
 
-        if (!storedUserId && !isOnboarding) {
+        if (!storedUserId && !isOnboarding && !isPublicPage) {
+          // If no profile and not on onboarding or landing, go to onboarding
           router.push('/onboarding');
         } else if (storedUserId && isOnboarding) {
+          // If profile exists and trying to onboard, go to dashboard
           router.push('/dashboard');
         }
         setIsChecking(false);
@@ -45,7 +44,9 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     handleAuth();
   }, [user, isUserLoading, auth, router, pathname]);
 
-  if (isUserLoading || isChecking) {
+  // Only show loader if we are on a page that requires profile data
+  const isPublicPage = pathname === '/';
+  if ((isUserLoading || isChecking) && !isPublicPage) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
