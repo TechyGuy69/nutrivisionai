@@ -12,8 +12,15 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [isChecking, setIsChecking] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
+
     const handleAuth = async () => {
       // 1. Ensure user is signed in anonymously
       if (!isUserLoading && !user) {
@@ -45,13 +52,18 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     };
 
     handleAuth();
-  }, [user, isUserLoading, auth, router, pathname]);
+  }, [user, isUserLoading, auth, router, pathname, isMounted]);
 
-  // Handle visibility for different states
+  // To prevent hydration mismatch, we MUST render the same content on the server 
+  // and during the initial client-side hydration pass. 
+  if (!isMounted) {
+    return <>{children}</>;
+  }
+
   const isPublicPage = pathname === '/';
   const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('nutrivision_userId') : null;
 
-  // If onboarded user is on public page, hide content while redirecting
+  // If onboarded user is on public page, hide content while redirecting (only after mount)
   if (storedUserId && isPublicPage) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
