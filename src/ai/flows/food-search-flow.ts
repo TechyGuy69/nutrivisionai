@@ -8,7 +8,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'kit';
+import { z } from 'genkit';
 
 const FoodItemSchema = z.object({
   id: z.string().describe('A URL-safe slug or identifier for the food item.'),
