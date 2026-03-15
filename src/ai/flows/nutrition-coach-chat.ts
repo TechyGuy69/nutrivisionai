@@ -7,26 +7,25 @@
  * - NutritionCoachChatOutput - The return type for the nutritionCoachChat function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
+import { ai } from '@/ai/genkit';
+import { z } from 'genkit';
 
-const NutritionCoachChatInputSchema = z
-  .string()
-  .describe('The user\'s question about food, nutrition, or health.');
+const NutritionCoachChatInputSchema = z.object({
+  message: z.string().describe('The user\'s question about food, nutrition, or health.'),
+});
 export type NutritionCoachChatInput = z.infer<typeof NutritionCoachChatInputSchema>;
 
 const NutritionCoachChatOutputSchema = z.object({
-  advice: z.string().describe('The personalized advice from the AI nutrition coach.')
+  reply: z.string().describe('The personalized advice or answer from the AI nutrition coach.'),
 });
-export type NutritionCoachChatOutput = string;
 
 /**
  * Handles the AI nutrition coaching process.
  * Acts as a nutrition assistant to answer questions, explain values, and suggest alternatives.
  */
-export async function nutritionCoachChat(input: NutritionCoachChatInput): Promise<NutritionCoachChatOutput> {
+export async function nutritionCoachChat(userMessage: string): Promise<string> {
   try {
-    return await nutritionCoachChatFlow(input);
+    return await nutritionCoachChatFlow({ message: userMessage });
   } catch (error: any) {
     console.error("nutritionCoachChat error:", error);
     if (error.message?.includes('429') || error.message?.includes('quota')) {
@@ -36,23 +35,23 @@ export async function nutritionCoachChat(input: NutritionCoachChatInput): Promis
   }
 }
 
-const prompt = ai.definePrompt({
+const coachPrompt = ai.definePrompt({
   name: 'nutritionCoachChatPrompt',
-  input: {schema: NutritionCoachChatInputSchema},
-  output: {schema: NutritionCoachChatOutputSchema},
-  system: `You are NutriVision AI, a world-class nutrition assistant and expert coach. 
-  Your goal is to provide science-based, helpful, and compassionate advice.
+  input: { schema: NutritionCoachChatInputSchema },
+  output: { schema: NutritionCoachChatOutputSchema },
+  system: `You are a helpful nutrition and food assistant. 
+  Answer the following user question about food, nutrition, or cooking in a clear and helpful way.
   
-  Responsibilities:
-  1. Answer any food or nutrition related questions accurately.
-  2. Explain complex nutritional values in simple terms.
-  3. Suggest healthier alternatives for processed foods.
-  4. Recommend creative cooking ideas and recipes.
-  5. Provide actionable diet tips based on user goals.
+  Your capabilities:
+  - Answer any food or nutrition related questions accurately.
+  - Explain complex nutritional values in simple terms.
+  - Suggest healthier alternatives for processed foods.
+  - Recommend creative cooking ideas and recipes.
+  - Provide actionable diet tips based on user goals.
   
   Tone: Friendly, encouraging, professional, and clear.
   Always emphasize that users should consult medical professionals for specific health conditions.`,
-  prompt: `User's question or topic: "{{{this}}}"`,
+  prompt: `User question: "{{{message}}}"`,
 });
 
 const nutritionCoachChatFlow = ai.defineFlow(
@@ -61,13 +60,13 @@ const nutritionCoachChatFlow = ai.defineFlow(
     inputSchema: NutritionCoachChatInputSchema,
     outputSchema: z.string(),
   },
-  async input => {
-    const {output} = await prompt(input);
+  async (input) => {
+    const { output } = await coachPrompt(input);
     
-    if (!output || !output.advice) {
-      return "I'm sorry, I'm having trouble formulating a nutrition tip right now. Could you please try rephrasing your question?";
+    if (!output || !output.reply) {
+      throw new Error("The AI coach was unable to formulate a clear response. Please try rephrasing your question.");
     }
     
-    return output.advice;
+    return output.reply;
   }
 );
