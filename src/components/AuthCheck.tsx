@@ -37,17 +37,21 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
         const isOnboarding = pathname === '/onboarding';
         const isPublicPage = pathname === '/';
 
-        if (!storedUserId && !isOnboarding && !isPublicPage) {
-          // If no profile and not on onboarding or landing, go to onboarding
-          router.push('/onboarding');
-        } else if (storedUserId && isOnboarding) {
-          // If profile exists and trying to onboard, go to dashboard
-          router.push('/dashboard');
-        } else if (storedUserId && isPublicPage) {
-          // If onboarded user is on the public landing page, skip it and go to dashboard
-          router.push('/dashboard');
+        if (!storedUserId) {
+          // Not onboarded: only allow landing page and onboarding page
+          if (!isPublicPage && !isOnboarding) {
+            router.push('/');
+          } else {
+            setIsChecking(false);
+          }
+        } else {
+          // Onboarded: skip landing page and onboarding page
+          if (isPublicPage || isOnboarding) {
+            router.push('/dashboard');
+          } else {
+            setIsChecking(false);
+          }
         }
-        setIsChecking(false);
       }
     };
 
@@ -61,10 +65,11 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
   }
 
   const isPublicPage = pathname === '/';
+  const isOnboarding = pathname === '/onboarding';
   const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('nutrivision_userId') : null;
 
-  // If onboarded user is on public page, hide content while redirecting (only after mount)
-  if (storedUserId && isPublicPage) {
+  // Show nothing if we are redirecting away from pages we shouldn't be on
+  if (storedUserId && (isPublicPage || isOnboarding)) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -72,8 +77,16 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Show loader if we are on a page that requires profile data but we are still checking
-  if ((isUserLoading || isChecking) && !isPublicPage) {
+  if (!storedUserId && !isPublicPage && !isOnboarding) {
+     return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show loader if we are still checking auth state on protected pages
+  if ((isUserLoading || isChecking) && !isPublicPage && !isOnboarding) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
