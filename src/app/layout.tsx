@@ -1,6 +1,8 @@
 import type {Metadata} from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
+import { FirebaseClientProvider } from '@/firebase/client-provider';
+import { AuthCheck } from '@/components/AuthCheck';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -20,7 +22,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="font-body antialiased">{children}</body>
+      <body className="font-body antialiased">
+        <FirebaseClientProvider>
+          <AuthCheck>
+            {children}
+          </AuthCheck>
+        </FirebaseClientProvider>
+      </body>
     </html>
   );
 }

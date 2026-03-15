@@ -1,4 +1,3 @@
-
 "use client";
 
 import { Navbar } from "@/components/Navbar";
@@ -6,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Apple, History, Heart, Target, ChevronRight, Activity } from "lucide-react";
+import { Apple, History, Heart, Target, ChevronRight, Activity, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useUser, useFirestore, useDoc } from "@/firebase";
+import { doc } from "firebase/firestore";
 
 const recentScans = [
   { id: "apple", name: "Red Apple", date: "Today, 10:24 AM", calories: 95 },
@@ -21,6 +22,13 @@ const favoriteRecipes = [
 ];
 
 export default function DashboardPage() {
+  const { user } = useUser();
+  const db = useFirestore();
+
+  // Memoize user document ref
+  const userRef = user && db ? doc(db, 'users', user.uid) : null;
+  const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -28,8 +36,18 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
-              <h1 className="text-3xl font-bold font-headline">Welcome back, Alex!</h1>
-              <p className="text-muted-foreground">You're 80% towards your daily protein goal. Keep it up!</p>
+              <h1 className="text-3xl font-bold font-headline">
+                {isProfileLoading ? (
+                  <Loader2 className="h-6 w-6 animate-spin inline mr-2" />
+                ) : (
+                  `Welcome back, ${profile?.name || 'Friend'}!`
+                )}
+              </h1>
+              <p className="text-muted-foreground">
+                {profile?.healthGoal 
+                  ? `Focusing on: ${profile.healthGoal}. You're 80% towards your daily protein goal.` 
+                  : "You're 80% towards your daily protein goal. Keep it up!"}
+              </p>
             </div>
             <div className="flex gap-2">
               <div className="bg-white px-4 py-2 rounded-lg border shadow-sm flex items-center gap-2">
@@ -87,7 +105,8 @@ export default function DashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm leading-relaxed opacity-90">
-                    "Since you had a high-carb lunch, try a lighter dinner with lean proteins and leafy greens to balance your macros for the day!"
+                    "Since you follow a <span className="font-bold underline">{profile?.dietaryPreference || 'Healthy'}</span> diet, 
+                    try a lighter dinner with lean proteins and leafy greens to balance your macros for the day!"
                   </p>
                   <Link href="/coach">
                     <Button variant="secondary" className="w-full mt-4 text-xs h-8">Ask for ideas</Button>
