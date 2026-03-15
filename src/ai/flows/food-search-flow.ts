@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to search for food items and provide structured nutritional data.
@@ -87,7 +88,7 @@ const searchFoodsFlow = ai.defineFlow(
       console.error("[Genkit] Food search fatal error:", error);
       
       if (error.message?.includes('API_KEY_INVALID') || error.status === 403) {
-        console.error("CRITICAL: The Gemini API Key is missing, invalid, or lacks permissions. Please check your environment variables (GEMINI_API_KEY).");
+        console.error("CRITICAL: The Gemini API Key is missing, invalid, or lacks permissions. Please check your environment variables (GEMINI_API_KEY / GOOGLE_GENAI_API_KEY).");
       }
       
       return [];
