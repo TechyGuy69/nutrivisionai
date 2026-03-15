@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Apple, History, Heart, Target, ChevronRight, Activity, Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useUser, useFirestore, useDoc } from "@/firebase";
+import { useUser, useFirestore, useDoc, useMemoFirebase } from "@/firebase";
 import { doc } from "firebase/firestore";
 
 const recentScans = [
@@ -25,8 +25,12 @@ export default function DashboardPage() {
   const { user } = useUser();
   const db = useFirestore();
 
-  // Memoize user document ref
-  const userRef = user && db ? doc(db, 'users', user.uid) : null;
+  // Stabilize user document ref with useMemoFirebase
+  const userRef = useMemoFirebase(() => {
+    if (!user || !db) return null;
+    return doc(db, 'users', user.uid);
+  }, [user, db]);
+
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   return (

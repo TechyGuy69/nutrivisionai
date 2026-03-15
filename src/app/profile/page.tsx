@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Navbar } from '@/components/Navbar';
-import { useUser, useFirestore, useDoc } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -21,8 +21,12 @@ export default function ProfilePage() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  // Memoize ref for useDoc
-  const userRef = user && db ? doc(db, 'users', user.uid) : null;
+  // Stabilize user document ref with useMemoFirebase
+  const userRef = useMemoFirebase(() => {
+    if (!user || !db) return null;
+    return doc(db, 'users', user.uid);
+  }, [user, db]);
+
   const { data: profile, isLoading: isProfileLoading } = useDoc(userRef);
 
   const [isUpdating, setIsUpdating] = useState(false);
