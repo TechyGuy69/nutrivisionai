@@ -1,0 +1,95 @@
+rules_version = '2';
+
+/**
+ * NutriVision AI Firestore Security Rules
+ * 
+ * CORE PHILOSOPHY:
+ * This ruleset implements a strict User-Ownership model. Access to data is tied directly 
+ * to the Firebase Authentication UID. This ensures that even in a guest/anonymous 
+ * environment, users can only access and modify their own profile data.
+ *
+ * DATA STRUCTURE:
+ * - /users/{userId}: Top-level collection where each document represents a unique user profile.
+ *   The document ID ({userId}) corresponds exactly to the user's Firebase UID.
+ *
+ * KEY SECURITY DECISIONS:
+ * 1. Anonymous Auth Reliance: The system relies on Firebase Anonymous Authentication to 
+ *    provide a stable UID before a user completes onboarding.
+ * 2. Path-Based Authorization: By mapping the UID to the Document ID, we perform 
+ *    extremely fast authorization checks without needing additional 'get' lookups.
+ * 3. Relational Integrity: We enforce that the 'id' field within the document matches 
+ *    the document's ID in the path to ensure data consistency.
+ * 4. Private by Default: No public reading or listing of user profiles is permitted. 
+ *    Only the authenticated owner can access their specific profile.
+ *
+ * DENORMALIZATION FOR AUTHORIZATION:
+ * The 'id' field is denormalized directly into the UserProfile document. This allows 
+ * the rules to verify that the internal data matches the document's location in the 
+ * database, preventing users from spoofing IDs or cross-linking profiles.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- GLOBAL HELPER FUNCTIONS ---
+
+    /**
+     * @description Checks if the request is made by an authenticated user (including anonymous).
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the authenticated user's UID matches the provided userId.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * @description Verifies ownership and ensures the document exists for state-changing operations.
+     */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- COLLECTION RULES ---
+
+    /**
+     * @description Rules for the 'users' collection, storing individual UserProfiles.
+     * @path /users/{userId}
+     * @allow (get) If the user is the owner of the profile.
+     * @deny (list) If a user tries to query the entire users collection.
+     * @principle Enforces strict document ownership and path-to-data consistency.
+     */
+    match /users/{userId} {
+      
+      // READS
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId); // Allows owners to query their own specific document via collection refs
+
+      // WRITES
+      
+      /**
+       * On creation, we ensure the user is who they say they are (isOwner) 
+       * and that the 'id' field in the data matches the document ID in the path.
+       */
+      allow create: if isOwner(userId) 
+                    && request.resource.data.id == userId;
+
+      /**
+       * On update, we ensure the document exists, the user owns it,
+       * and the critical 'id' field remains immutable to maintain relational integrity.
+       */
+      allow update: if isExistingOwner(userId) 
+                    && request.resource.data.id == resource.data.id;
+
+      /**
+       * Deletion is restricted to the owner and requires the document to exist.
+       */
+      allow delete: if isExistingOwner(userId);
+    }
+
+  }
+}

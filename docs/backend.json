@@ -1,0 +1,84 @@
+{
+  "entities": {
+    "UserProfile": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "UserProfile",
+      "type": "object",
+      "description": "Represents a user's profile information, collected during initial onboarding, including personal details, dietary preferences, and health goals. This profile is designed for non-authenticated guest users.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the UserProfile entity. This ID is generated upon onboarding and stored in localStorage for guest recognition."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's chosen name."
+        },
+        "age": {
+          "type": "number",
+          "description": "The user's age in years."
+        },
+        "gender": {
+          "type": "string",
+          "description": "The user's self-declared gender (e.g., Male, Female, Other, Prefer not to say)."
+        },
+        "dietaryPreference": {
+          "type": "string",
+          "description": "The user's primary dietary preference (e.g., Vegetarian, Non-Vegetarian, Vegan, Other)."
+        },
+        "healthGoal": {
+          "type": "string",
+          "description": "The user's main health or fitness goal (e.g., Weight Loss, Muscle Gain, Balanced Diet, Diabetic Friendly)."
+        },
+        "allergies": {
+          "type": "array",
+          "description": "A list of food allergies the user has. This field is optional.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the user profile was first created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "age",
+        "gender",
+        "dietaryPreference",
+        "healthGoal",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "UserProfile",
+          "schema": {
+            "$ref": "#/backend/entities/UserProfile"
+          },
+          "description": "Collection storing individual user profiles. Each document ID is the Firebase Anonymous Authentication UID of the user. Includes denormalized 'id' field matching the document ID for authorization independence, and 'createdAt' timestamp.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier (Firebase Anonymous Auth UID) of the user whose profile is being accessed."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The recommended Firestore structure is a top-level collection named 'users'. Each document within this collection will represent a single user's profile and will be named after their unique user ID, which is derived from a Firebase Anonymous Authentication UID. This structure explicitly adheres to all core design principles and mandates, ensuring a secure, scalable, and debuggable system.\n\n**Authorization Independence:** The design achieves critical authorization independence by leveraging Firebase Anonymous Authentication. When a user first interacts with the application, they are implicitly signed in anonymously, generating a unique Firebase `uid`. This `uid` is then used as both the document ID for their `UserProfile` in the `/users` collection (i.e., `/users/{uid}`) and stored as the `id` field within the document. The `uid` is also stored in `localStorage` on the client for persistence. This allows Firestore Security Rules to directly compare `request.auth.uid` (the authenticated anonymous user's ID) with the document ID (`userId` wildcard in the path). For example, `match /users/{userId} { allow read, write: if request.auth.uid == userId; }`. This eliminates any need for `get()` calls in rules, ensuring atomic operations and preventing hierarchical authorization dependencies.\n\n**QAPs (Query as Authorization Predicate) Support:** The primary access patterns for user profiles are to retrieve (`get`) or update (`update`) *their own* profile. The `/users/{userId}` path structure directly supports QAPs. When a user requests their profile, the specific `userId` (their `uid`) is part of the query path. The security rules can then verify that this `userId` matches `request.auth.uid`. This design ensures that users can only access their own profile document, and it inherently prevents malicious `list` queries of other users' data, as `list` operations would not be authorized unless specifically allowed (which is not required for individual user profiles).\n\n**Structural Segregation & Access Modeling:** The `users` collection is entirely dedicated to `UserProfile` documents. All documents within this collection share the same security posture: they are private and owned by the `userId` matching their document ID. This clear structural segregation simplifies security rules. Path-based ownership (`/users/{userId}`) is used, which is the most straightforward and secure method for handling private, user-owned data in Firestore.\n\n**Data Clarity and Predictability:** The `UserProfile` entity schema is directly mapped to the document fields, ensuring a consistent and predictable data structure. The `createdAt` timestamp is included for data integrity and auditing. The `{userId}` wildcard is explicit and descriptive."
+  }
+}
