@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -5,33 +6,52 @@ import { Navbar } from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Info, ShieldCheck, AlertTriangle, Salad, Zap, Flame, Loader2, ChevronLeft, Beaker } from "lucide-react";
+import { Info, ShieldCheck, AlertTriangle, Salad, Zap, Flame, Loader2, ChevronLeft, Beaker, Camera } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getFoodDetails, type FoodItemInfo } from "@/ai/flows/food-search-flow";
 import { useParams } from "next/navigation";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 export default function FoodDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const [food, setFood] = useState<FoodItemInfo | null>(null);
+  const [foodImageUrl, setFoodImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isImageLoading, setIsImageLoading] = useState(false);
 
   useEffect(() => {
-    async function fetchFood() {
+    async function fetchFoodAndImage() {
       if (!id) return;
       setIsLoading(true);
       try {
         const decodedId = decodeURIComponent(id);
         const data = await getFoodDetails(decodedId);
         setFood(data);
+
+        if (data) {
+          // Fetch dynamic image
+          setIsImageLoading(true);
+          try {
+            const imageResponse = await fetch(`/api/food-image?q=${encodeURIComponent(data.name)}`);
+            if (imageResponse.ok) {
+              const imageData = await imageResponse.json();
+              setFoodImageUrl(imageData.url);
+            }
+          } catch (imgError) {
+            console.error("Error fetching food image:", imgError);
+          } finally {
+            setIsImageLoading(false);
+          }
+        }
       } catch (error) {
         console.error("Error fetching food details:", error);
       } finally {
         setIsLoading(false);
       }
     }
-    fetchFood();
+    fetchFoodAndImage();
   }, [id]);
 
   if (isLoading) {
@@ -68,6 +88,9 @@ export default function FoodDetailPage() {
     );
   }
 
+  const defaultPlaceholder = PlaceHolderImages.find(img => img.id === "recipe-placeholder")?.imageUrl || "https://picsum.photos/seed/food/1000/500";
+  const displayImageUrl = foodImageUrl || defaultPlaceholder;
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -78,15 +101,21 @@ export default function FoodDetailPage() {
             Back to Explorer
           </Link>
 
-          {/* Header Section */}
-          <div className="relative h-72 w-full rounded-3xl overflow-hidden mb-8 shadow-2xl">
-            <Image 
-              src={`https://picsum.photos/seed/${food.id}/1000/500`} 
-              alt={food.name} 
-              fill 
-              className="object-cover"
-              data-ai-hint="food meal cuisine"
-            />
+          {/* Header Section with Dynamic Image */}
+          <div className="relative h-72 w-full rounded-3xl overflow-hidden mb-8 shadow-2xl bg-muted">
+            {isImageLoading ? (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <Loader2 className="h-10 w-10 animate-spin text-primary/30" />
+              </div>
+            ) : (
+              <Image 
+                src={displayImageUrl} 
+                alt={food.name} 
+                fill 
+                className="object-cover"
+                unoptimized={displayImageUrl.includes('spoonacular.com')}
+              />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
             <div className="absolute bottom-8 left-8 text-white">
               <Badge variant="secondary" className="mb-3 bg-primary text-white border-none px-3 py-1 uppercase tracking-widest text-[10px] font-bold">
