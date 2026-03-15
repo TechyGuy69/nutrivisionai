@@ -1,24 +1,73 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, ChevronRight, Apple, Info, Loader2, Utensils } from "lucide-react";
+import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FoodItemInfo } from "@/ai/flows/food-search-flow";
+import { cn } from "@/lib/utils";
 
 export default function SearchPage() {
+  const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<FoodItemInfo[]>([]);
+  const [suggestions, setSuggestions] = useState<FoodItemInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSuggesting, setIsSuggesting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // Debounce logic for suggestions
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (query.trim().length > 1) {
+        fetchSuggestions(query);
+      } else {
+        setSuggestions([]);
+        setShowSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fetchSuggestions = async (q: string) => {
+    setIsSuggesting(true);
+    try {
+      const response = await fetch(`/api/food-search?q=${encodeURIComponent(q)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setSuggestions(data.slice(0, 5)); // Limit to top 5 suggestions
+        setShowSuggestions(true);
+      }
+    } catch (error) {
+      console.error("Suggestions error:", error);
+    } finally {
+      setIsSuggesting(false);
+    }
+  };
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!query.trim()) return;
 
+    setShowSuggestions(false);
     setIsLoading(true);
     setHasSearched(true);
     
@@ -35,6 +84,12 @@ export default function SearchPage() {
     }
   };
 
+  const clearSearch = () => {
+    setQuery("");
+    setSuggestions([]);
+    setShowSuggestions(false);
+  };
+
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <Navbar />
@@ -45,20 +100,67 @@ export default function SearchPage() {
             <p className="text-muted-foreground">Search our AI-powered database for detailed nutritional facts on any food or dish.</p>
           </header>
           
-          <form onSubmit={handleSearch} className="flex gap-2 mb-10">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-              <Input 
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search raw foods or cooked dishes..." 
-                className="pl-10 h-12 text-lg bg-white shadow-sm"
-              />
-            </div>
-            <Button type="submit" size="lg" className="h-12 px-8 shadow-md" disabled={isLoading}>
-              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Explore"}
-            </Button>
-          </form>
+          <div ref={searchRef} className="relative mb-10">
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input 
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() => query.length > 1 && setShowSuggestions(true)}
+                  placeholder="Search raw foods or cooked dishes..." 
+                  className="pl-10 pr-10 h-12 text-lg bg-white shadow-sm rounded-xl focus-visible:ring-primary"
+                />
+                {query && (
+                  <button 
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <Button type="submit" size="lg" className="h-12 px-8 shadow-md rounded-xl" disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Explore"}
+              </Button>
+            </form>
+
+            {/* Suggestions Dropdown */}
+            {showSuggestions && (suggestions.length > 0 || isSuggesting) && (
+              <Card className="absolute z-50 w-full mt-2 shadow-2xl border-primary/10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <CardContent className="p-0">
+                  {isSuggesting ? (
+                    <div className="p-4 flex items-center justify-center text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Searching suggestions...
+                    </div>
+                  ) : (
+                    <ul className="divide-y">
+                      {suggestions.map((item) => (
+                        <li key={item.id}>
+                          <Link 
+                            href={`/food/${encodeURIComponent(item.name)}`}
+                            className="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors group"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="bg-primary/5 p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                <Utensils className="h-4 w-4" />
+                              </div>
+                              <div>
+                                <div className="font-semibold group-hover:text-primary transition-colors">{item.name}</div>
+                                <div className="text-xs text-muted-foreground">{item.category} • {item.calories} kcal</div>
+                              </div>
+                            </div>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
           <div className="grid gap-4">
             {isLoading ? (
@@ -69,7 +171,7 @@ export default function SearchPage() {
             ) : results.length > 0 ? (
               results.map((item) => (
                 <Link key={item.id} href={`/food/${encodeURIComponent(item.name)}`}>
-                  <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md group">
+                  <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md group rounded-xl overflow-hidden">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
                       <div className="flex items-center gap-4">
                         <div className="bg-primary/10 p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors">
