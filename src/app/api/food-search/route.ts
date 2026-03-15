@@ -24,7 +24,7 @@ export async function GET(request: Request) {
 
   try {
     // 1. Try USDA FoodData Central API if key is available
-    if (usdaApiKey) {
+    if (usdaApiKey && usdaApiKey !== '') {
       try {
         const usdaResponse = await fetch(
           `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=5&api_key=${usdaApiKey}`
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
                 sugar: 0,
                 vitamins: [],
                 minerals: [],
-                ingredients: food.foodComponents || [],
+                ingredients: food.foodComponents?.map((c: any) => c.description) || [],
                 healthBenefits: ["High quality USDA verified data"],
                 risks: [],
                 category: food.foodCategory || "General Food",
@@ -66,6 +66,8 @@ export async function GET(request: Request) {
 
             return NextResponse.json(mappedResults);
           }
+        } else {
+          console.warn('USDA API request failed with status:', usdaResponse.status);
         }
       } catch (usdaError) {
         console.error('USDA API Error:', usdaError);
