@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from "react";
@@ -6,28 +5,34 @@ import { Navbar } from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, ChevronRight, Apple, Info } from "lucide-react";
+import { Search, ChevronRight, Apple, Info, Loader2, Utensils } from "lucide-react";
 import Link from "next/link";
-
-// Mock data for search results
-const mockSearchResults = [
-  { id: "apple", name: "Apple (Red Delicious)", calories: 95, protein: 0.5, carbs: 25, fat: 0.3 },
-  { id: "chicken-breast", name: "Grilled Chicken Breast", calories: 165, protein: 31, carbs: 0, fat: 3.6 },
-  { id: "avocado", name: "Hass Avocado", calories: 160, protein: 2, carbs: 9, fat: 15 },
-  { id: "quinoa", name: "Cooked Quinoa", calories: 222, protein: 8, carbs: 39, fat: 4 },
-  { id: "salmon", name: "Atlantic Salmon", calories: 208, protein: 22, carbs: 0, fat: 13 },
-];
+import { type FoodItemInfo } from "@/ai/flows/food-search-flow";
 
 export default function SearchPage() {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState(mockSearchResults);
+  const [results, setResults] = useState<FoodItemInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const filtered = mockSearchResults.filter(item => 
-      item.name.toLowerCase().includes(query.toLowerCase())
-    );
-    setResults(filtered);
+    if (!query.trim()) return;
+
+    setIsLoading(true);
+    setHasSearched(true);
+    
+    try {
+      const response = await fetch(`/api/food-search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error("Search failed");
+      const data = await response.json();
+      setResults(data);
+    } catch (error) {
+      console.error("Search error:", error);
+      setResults([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -35,7 +40,10 @@ export default function SearchPage() {
       <Navbar />
       <main className="flex-1 container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6 font-headline">Food Data Explorer</h1>
+          <header className="mb-8">
+            <h1 className="text-3xl font-bold mb-2 font-headline">Food Data Explorer</h1>
+            <p className="text-muted-foreground">Search our AI-powered database for detailed nutritional facts on any food or dish.</p>
+          </header>
           
           <form onSubmit={handleSearch} className="flex gap-2 mb-10">
             <div className="relative flex-1">
@@ -43,43 +51,56 @@ export default function SearchPage() {
               <Input 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search nutritional database..." 
-                className="pl-10 h-12 text-lg"
+                placeholder="Search raw foods or cooked dishes..." 
+                className="pl-10 h-12 text-lg bg-white shadow-sm"
               />
             </div>
-            <Button type="submit" size="lg" className="h-12 px-8">Search</Button>
+            <Button type="submit" size="lg" className="h-12 px-8 shadow-md" disabled={isLoading}>
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Explore"}
+            </Button>
           </form>
 
           <div className="grid gap-4">
-            {results.length > 0 ? (
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-20 text-center">
+                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+                <p className="text-muted-foreground font-medium">Querying AI nutritional database...</p>
+              </div>
+            ) : results.length > 0 ? (
               results.map((item) => (
-                <Link key={item.id} href={`/food/${item.id}`}>
-                  <Card className="hover:border-primary/50 transition-colors shadow-sm">
+                <Link key={item.id} href={`/food/${encodeURIComponent(item.name)}`}>
+                  <Card className="hover:border-primary/50 transition-all shadow-sm hover:shadow-md group">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 py-4">
                       <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 p-2 rounded-lg text-primary">
-                          <Apple className="h-6 w-6" />
+                        <div className="bg-primary/10 p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                          <Utensils className="h-6 w-6" />
                         </div>
                         <div>
                           <CardTitle className="text-lg">{item.name}</CardTitle>
-                          <div className="flex gap-4 text-sm text-muted-foreground mt-1">
-                            <span>{item.calories} kcal</span>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mt-1">
+                            <span className="font-medium text-foreground">{item.calories} kcal</span>
                             <span>P: {item.protein}g</span>
-                            <span>C: {item.carbs}g</span>
+                            <span>C: {item.carbohydrates}g</span>
                             <span>F: {item.fat}g</span>
+                            <span className="text-xs uppercase tracking-wider bg-muted px-1.5 rounded">{item.category}</span>
                           </div>
                         </div>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
                     </CardHeader>
                   </Card>
                 </Link>
               ))
-            ) : (
+            ) : hasSearched ? (
               <div className="text-center py-20 bg-muted/10 rounded-xl border-2 border-dashed">
                 <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                 <h3 className="text-xl font-semibold">No foods found</h3>
-                <p className="text-muted-foreground">Try searching for something else like "Banana" or "Pizza"</p>
+                <p className="text-muted-foreground">Try searching for something else like "Quinoa Salad" or "Tofu"</p>
+              </div>
+            ) : (
+              <div className="text-center py-20 bg-primary/5 rounded-xl border-2 border-dashed border-primary/20">
+                <Apple className="h-12 w-12 text-primary/30 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-muted-foreground">Enter a food name to begin exploration</h3>
               </div>
             )}
           </div>
