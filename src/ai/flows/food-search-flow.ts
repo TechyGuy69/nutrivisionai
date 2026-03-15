@@ -45,14 +45,15 @@ const foodSearchPrompt = ai.definePrompt({
   name: 'foodSearchPrompt',
   input: { schema: z.string() },
   output: { schema: FoodSearchOutputSchema },
-  prompt: `You are an expert nutritional database. Search for and provide detailed information for food items related to the query: "{{{this}}}".
+  prompt: `You are an expert nutritional database engine. Search for and provide detailed information for food items related to the query: "{{{this}}}".
 
 Requirements:
 1. Provide a list of up to 5 relevant matches.
 2. For each match, provide accurate estimated nutritional values per 100g.
-3. Include vitamins, minerals, and health insights.
-4. Support raw foods, ingredients, and complex cooked dishes (global cuisines).
-5. Ensure the 'id' is a lowercase, hyphenated version of the name.`,
+3. If exact data is unavailable, use your expert knowledge to provide your best professional estimate. NEVER say "data unavailable".
+4. Include vitamins, minerals, and health insights.
+5. Support raw ingredients, prepared snacks, and complex global cooked dishes.
+6. Ensure the 'id' is a lowercase, hyphenated version of the name.`,
 });
 
 const searchFoodsFlow = ai.defineFlow(
@@ -90,7 +91,8 @@ const getFoodDetailsFlow = ai.defineFlow(
   async (idOrName) => {
     try {
       const { output } = await ai.generate({
-        prompt: `Provide comprehensive nutritional and health data for the specific food item: "${idOrName}".`,
+        prompt: `You are an expert nutritionist. Provide comprehensive, expert-verified nutritional and health data for the specific food item: "${idOrName}".
+        If this is a complex dish or branded item with unknown exact data, provide your best professional estimate for its nutritional profile per 100g based on standard ingredients.`,
         output: { schema: FoodItemSchema },
       });
       return output || null;
