@@ -16,7 +16,7 @@ const features = [
     icon: Search,
     href: "/search",
     color: "bg-blue-500/10 text-blue-500",
-    image: PlaceHolderImages.find(img => img.id === "hero-healthy-food")?.imageUrl
+    image: PlaceHolderImages.find(img => img.id === "feature-explorer")?.imageUrl
   },
   {
     title: "Visual Food Recognition",
@@ -95,7 +95,9 @@ export default function Home() {
                       alt={feature.title}
                       fill
                       className="object-cover transition-transform group-hover:scale-105"
-                      data-ai-hint="food nutrition"
+                      data-ai-hint={
+                        PlaceHolderImages.find(img => img.imageUrl === feature.image)?.imageHint || "food nutrition"
+                      }
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                     <div className={cn("absolute bottom-3 left-3 rounded-md p-2 shadow-sm", feature.color)}>
