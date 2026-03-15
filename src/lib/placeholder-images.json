@@ -1,3 +1,34 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero-healthy-food",
+      "description": "A vibrant assortment of fresh vegetables and fruits",
+      "imageUrl": "https://picsum.photos/seed/nutrition1/1200/600",
+      "imageHint": "healthy food vegetables"
+    },
+    {
+      "id": "recipe-placeholder",
+      "description": "A delicious prepared healthy meal",
+      "imageUrl": "https://picsum.photos/seed/recipe/800/600",
+      "imageHint": "healthy meal salad"
+    },
+    {
+      "id": "feature-recognition",
+      "description": "Smart phone scanning food",
+      "imageUrl": "https://picsum.photos/seed/scan/400/300",
+      "imageHint": "phone scanning food"
+    },
+    {
+      "id": "feature-recipes",
+      "description": "Cooking ingredients on a table",
+      "imageUrl": "https://picsum.photos/seed/cook/400/300",
+      "imageHint": "cooking ingredients"
+    },
+    {
+      "id": "feature-coach",
+      "description": "Digital nutrition coach avatar",
+      "imageUrl": "https://picsum.photos/seed/coach/400/300",
+      "imageHint": "health coach"
+    }
+  ]
 }
