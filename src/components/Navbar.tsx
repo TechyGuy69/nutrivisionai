@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { Leaf, Search, Camera, ChefHat, MessageSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/firebase";
+import { useState, useEffect } from "react";
 
 const navItems = [
   { name: "Explore", href: "/search", icon: Search },
@@ -16,14 +17,23 @@ const navItems = [
 export function Navbar() {
   const pathname = usePathname();
   const { user } = useUser();
+  const [hasUserId, setHasUserId] = useState(false);
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('nutrivision_userId');
+    setHasUserId(!!storedUserId);
+  }, []);
 
   // Don't show full nav if on onboarding
   const isOnboarding = pathname === '/onboarding';
+  
+  // Logic for the logo link destination
+  const logoHref = hasUserId ? "/dashboard" : "/";
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href="/" className="flex items-center gap-2 font-headline text-xl font-bold text-primary">
+        <Link href={logoHref} className="flex items-center gap-2 font-headline text-xl font-bold text-primary">
           <Leaf className="h-6 w-6" />
           <span>NutriVision AI</span>
         </Link>

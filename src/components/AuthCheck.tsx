@@ -36,6 +36,9 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
         } else if (storedUserId && isOnboarding) {
           // If profile exists and trying to onboard, go to dashboard
           router.push('/dashboard');
+        } else if (storedUserId && isPublicPage) {
+          // If onboarded user is on the public landing page, skip it and go to dashboard
+          router.push('/dashboard');
         }
         setIsChecking(false);
       }
@@ -44,8 +47,20 @@ export function AuthCheck({ children }: { children: React.ReactNode }) {
     handleAuth();
   }, [user, isUserLoading, auth, router, pathname]);
 
-  // Only show loader if we are on a page that requires profile data
+  // Handle visibility for different states
   const isPublicPage = pathname === '/';
+  const storedUserId = typeof window !== 'undefined' ? localStorage.getItem('nutrivision_userId') : null;
+
+  // If onboarded user is on public page, hide content while redirecting
+  if (storedUserId && isPublicPage) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show loader if we are on a page that requires profile data but we are still checking
   if ((isUserLoading || isChecking) && !isPublicPage) {
     return (
       <div className="flex h-screen items-center justify-center bg-background">
