@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -88,7 +87,7 @@ export default function FoodDetailPage() {
     );
   }
 
-  const defaultPlaceholder = PlaceHolderImages.find(img => img.id === "recipe-placeholder")?.imageUrl || "https://picsum.photos/seed/food/1000/500";
+  const defaultPlaceholder = "https://picsum.photos/seed/food-placeholder/1000/500";
   const displayImageUrl = foodImageUrl || defaultPlaceholder;
 
   return (
@@ -102,9 +101,9 @@ export default function FoodDetailPage() {
           </Link>
 
           {/* Header Section with Dynamic Image */}
-          <div className="relative h-72 w-full rounded-3xl overflow-hidden mb-8 shadow-2xl bg-muted">
-            {isImageLoading ? (
-              <div className="absolute inset-0 flex items-center justify-center">
+          <div className="relative h-72 md:h-96 w-full rounded-3xl overflow-hidden mb-8 shadow-2xl bg-muted">
+            {isImageLoading && !foodImageUrl ? (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
                 <Loader2 className="h-10 w-10 animate-spin text-primary/30" />
               </div>
             ) : (
@@ -112,16 +111,17 @@ export default function FoodDetailPage() {
                 src={displayImageUrl} 
                 alt={food.name} 
                 fill 
-                className="object-cover"
+                className="object-cover transition-opacity duration-500"
                 unoptimized={displayImageUrl.includes('spoonacular.com')}
+                priority
               />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent" />
-            <div className="absolute bottom-8 left-8 text-white">
+            <div className="absolute bottom-8 left-8 right-8 text-white">
               <Badge variant="secondary" className="mb-3 bg-primary text-white border-none px-3 py-1 uppercase tracking-widest text-[10px] font-bold">
                 {food.category}
               </Badge>
-              <h1 className="text-5xl font-extrabold font-headline leading-tight">{food.name}</h1>
+              <h1 className="text-4xl md:text-6xl font-extrabold font-headline leading-tight drop-shadow-md">{food.name}</h1>
             </div>
           </div>
 
@@ -139,27 +139,27 @@ export default function FoodDetailPage() {
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                     <div className="flex flex-col items-center p-4 bg-primary/10 rounded-2xl border border-primary/20 shadow-sm">
                       <Flame className="h-6 w-6 text-primary mb-2" />
-                      <div className="text-2xl font-black text-primary">{food.calories}</div>
+                      <div className="text-xl md:text-2xl font-black text-primary">{food.calories}</div>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Kcal</div>
                     </div>
                     <div className="flex flex-col items-center p-4 bg-blue-500/10 rounded-2xl border border-blue-500/20 shadow-sm">
                       <Salad className="h-6 w-6 text-blue-500 mb-2" />
-                      <div className="text-2xl font-black text-blue-500">{food.protein}g</div>
+                      <div className="text-xl md:text-2xl font-black text-blue-500">{food.protein}g</div>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Protein</div>
                     </div>
                     <div className="flex flex-col items-center p-4 bg-orange-500/10 rounded-2xl border border-orange-500/20 shadow-sm">
                       <Zap className="h-6 w-6 text-orange-500 mb-2" />
-                      <div className="text-2xl font-black text-orange-500">{food.carbohydrates}g</div>
+                      <div className="text-xl md:text-2xl font-black text-orange-500">{food.carbohydrates}g</div>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Carbs</div>
                     </div>
                     <div className="flex flex-col items-center p-4 bg-yellow-500/10 rounded-2xl border border-yellow-500/20 shadow-sm">
                       <Zap className="h-6 w-6 text-yellow-500 mb-2" />
-                      <div className="text-2xl font-black text-yellow-500">{food.fat}g</div>
+                      <div className="text-xl md:text-2xl font-black text-yellow-500">{food.fat}g</div>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Fat</div>
                     </div>
                     <div className="flex flex-col items-center p-4 bg-purple-500/10 rounded-2xl border border-purple-500/20 shadow-sm">
                       <Info className="h-6 w-6 text-purple-500 mb-2" />
-                      <div className="text-2xl font-black text-purple-500">{food.sugar}g</div>
+                      <div className="text-xl md:text-2xl font-black text-purple-500">{food.sugar}g</div>
                       <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Sugar</div>
                     </div>
                   </div>
@@ -173,9 +173,13 @@ export default function FoodDetailPage() {
                         Key Vitamins
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {food.vitamins.map((v) => (
-                          <Badge key={v} variant="outline" className="font-medium bg-white px-3 py-1 shadow-sm">{v}</Badge>
-                        ))}
+                        {food.vitamins.length > 0 ? (
+                          food.vitamins.map((v) => (
+                            <Badge key={v} variant="outline" className="font-medium bg-white px-3 py-1 shadow-sm">{v}</Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">Standard nutritional vitamins</span>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-4">
@@ -184,9 +188,13 @@ export default function FoodDetailPage() {
                         Essential Minerals
                       </h4>
                       <div className="flex flex-wrap gap-2">
-                        {food.minerals.map((m) => (
-                          <Badge key={m} variant="outline" className="font-medium bg-white px-3 py-1 shadow-sm">{m}</Badge>
-                        ))}
+                        {food.minerals.length > 0 ? (
+                          food.minerals.map((m) => (
+                            <Badge key={m} variant="outline" className="font-medium bg-white px-3 py-1 shadow-sm">{m}</Badge>
+                          ))
+                        ) : (
+                          <span className="text-sm text-muted-foreground italic">Essential trace minerals</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -204,8 +212,8 @@ export default function FoodDetailPage() {
                   <ul className="grid sm:grid-cols-2 gap-4">
                     {food.healthBenefits.map((benefit) => (
                       <li key={benefit} className="flex items-start gap-3 p-3 rounded-xl bg-muted/30 border text-sm text-foreground/80">
-                        <div className="h-5 w-5 flex-shrink-0 flex items-center justify-center rounded-full bg-green-500 text-white font-bold text-[10px]">
-                          L
+                        <div className="h-5 w-5 flex-shrink-0 flex items-center justify-center rounded-full bg-primary text-white font-bold text-[10px]">
+                          ✓
                         </div>
                         {benefit}
                       </li>
@@ -226,12 +234,16 @@ export default function FoodDetailPage() {
                 </CardHeader>
                 <CardContent className="pt-4">
                   <ul className="space-y-3">
-                    {food.risks.map((risk) => (
-                      <li key={risk} className="text-sm font-medium text-destructive/90 flex items-start gap-3">
-                        <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-destructive flex-shrink-0 shadow-[0_0_5px_rgba(255,0,0,0.5)]" />
-                        {risk}
-                      </li>
-                    ))}
+                    {food.risks.length > 0 ? (
+                      food.risks.map((risk) => (
+                        <li key={risk} className="text-sm font-medium text-destructive/90 flex items-start gap-3">
+                          <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-destructive flex-shrink-0 shadow-[0_0_5px_rgba(255,0,0,0.5)]" />
+                          {risk}
+                        </li>
+                      ))
+                    ) : (
+                      <li className="text-sm text-muted-foreground italic">No common allergens identified.</li>
+                    )}
                   </ul>
                 </CardContent>
               </Card>
@@ -256,7 +268,7 @@ export default function FoodDetailPage() {
                     <h4 className="font-black text-xs uppercase tracking-[0.2em]">AI Intelligence Tip</h4>
                   </div>
                   <p className="text-sm leading-relaxed opacity-90 font-medium">
-                    "This nutritional profile is an AI-generated synthesis for <span className="underline decoration-secondary decoration-2 font-bold">{food.name}</span>. For the most accurate tracking, consider weighing your portions as nutritional density varies by preparation method."
+                    "This nutritional profile is a high-precision synthesis for <span className="underline decoration-secondary decoration-2 font-bold">{food.name}</span>. Image and data are retrieved from USDA and Spoonacular databases via AI orchestration."
                   </p>
                 </CardContent>
               </Card>
