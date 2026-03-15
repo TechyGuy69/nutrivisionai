@@ -12,13 +12,20 @@ export async function GET(request: Request) {
 
   try {
     const results = await searchFoods(query);
-    // If results is an empty array, it might be due to a silent error in the flow
     return NextResponse.json(results);
   } catch (error: any) {
     console.error('Food search API route caught error:', error);
+    
+    if (error.message === 'RATE_LIMIT_EXCEEDED') {
+      return NextResponse.json({ 
+        error: 'Rate Limit Exceeded',
+        message: 'The AI service is temporarily busy. Please wait about 60 seconds and try again.' 
+      }, { status: 429 });
+    }
+
     return NextResponse.json({ 
       error: 'Failed to fetch food data',
-      message: error.message 
+      message: 'An unexpected error occurred. Please try again later.' 
     }, { status: 500 });
   }
 }

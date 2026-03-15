@@ -39,7 +39,15 @@ const FoodSearchOutputSchema = z.object({
  * @returns A promise that resolves to an array of food items.
  */
 export async function searchFoods(query: string): Promise<FoodItemInfo[]> {
-  return searchFoodsFlow(query);
+  try {
+    return await searchFoodsFlow(query);
+  } catch (error: any) {
+    console.error("searchFoods error:", error);
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error("RATE_LIMIT_EXCEEDED");
+    }
+    return [];
+  }
 }
 
 const foodSearchPrompt = ai.definePrompt({
@@ -73,26 +81,11 @@ const searchFoodsFlow = ai.defineFlow(
     outputSchema: z.array(FoodItemSchema),
   },
   async (query) => {
-    try {
-      console.log(`[Genkit] Searching foods for query: "${query}"`);
-      const { output } = await foodSearchPrompt(query);
-      
-      if (!output || !output.foods || output.foods.length === 0) {
-        console.warn(`[Genkit] No foods found for query: "${query}". AI returned empty list.`);
-        return [];
-      }
-
-      console.log(`[Genkit] Found ${output.foods.length} items for query: "${query}"`);
-      return output.foods;
-    } catch (error: any) {
-      console.error("[Genkit] Food search fatal error:", error);
-      
-      if (error.message?.includes('API_KEY_INVALID') || error.status === 403) {
-        console.error("CRITICAL: The Gemini API Key is missing, invalid, or lacks permissions. Please check your environment variables (GEMINI_API_KEY / GOOGLE_GENAI_API_KEY).");
-      }
-      
+    const { output } = await foodSearchPrompt(query);
+    if (!output || !output.foods || output.foods.length === 0) {
       return [];
     }
+    return output.foods;
   }
 );
 
@@ -102,7 +95,15 @@ const searchFoodsFlow = ai.defineFlow(
  * @returns A promise that resolves to the food item details, or null if not found.
  */
 export async function getFoodDetails(idOrName: string): Promise<FoodItemInfo | null> {
-  return getFoodDetailsFlow(idOrName);
+  try {
+    return await getFoodDetailsFlow(idOrName);
+  } catch (error: any) {
+    console.error("getFoodDetails error:", error);
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error("RATE_LIMIT_EXCEEDED");
+    }
+    return null;
+  }
 }
 
 const getFoodDetailsFlow = ai.defineFlow(
@@ -112,22 +113,16 @@ const getFoodDetailsFlow = ai.defineFlow(
     outputSchema: FoodItemSchema.nullable(),
   },
   async (idOrName) => {
-    try {
-      console.log(`[Genkit] Fetching detailed info for: "${idOrName}"`);
-      const { output } = await ai.generate({
-        prompt: `You are a world-class nutritionist. Provide a comprehensive nutritional and health profile for: "${idOrName}". 
-        Provide expert-estimated values per 100g if exact lab data is unavailable.`,
-        output: { schema: FoodItemSchema },
-        config: {
-          safetySettings: [
-            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
-          ],
-        },
-      });
-      return output || null;
-    } catch (error: any) {
-      console.error("[Genkit] Get food details error:", error);
-      return null;
-    }
+    const { output } = await ai.generate({
+      prompt: `You are a world-class nutritionist. Provide a comprehensive nutritional and health profile for: "${idOrName}". 
+      Provide expert-estimated values per 100g if exact lab data is unavailable.`,
+      output: { schema: FoodItemSchema },
+      config: {
+        safetySettings: [
+          { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+        ],
+      },
+    });
+    return output || null;
   }
 );
