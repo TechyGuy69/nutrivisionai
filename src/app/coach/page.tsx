@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -7,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { nutritionCoachChat } from "@/ai/flows/nutrition-coach-chat";
 import { Send, Loader2, Leaf, User, Sparkles } from "lucide-react";
 
 type Message = {
@@ -30,7 +28,7 @@ export default function CoachPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,13 +40,24 @@ export default function CoachPage() {
     setIsLoading(true);
 
     try {
-      const response = await nutritionCoachChat(userMessage);
-      setMessages(prev => [...prev, { role: "coach", content: response }]);
-    } catch (error) {
+      const response = await fetch('/api/meal-coach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userMessage }),
+      });
+
+      const data = await response.json();
+      
+      if (response.ok && data.reply) {
+        setMessages(prev => [...prev, { role: "coach", content: data.reply }]);
+      } else {
+        throw new Error(data.reply || "AI coach is temporarily unavailable");
+      }
+    } catch (error: any) {
       console.error("Coach chat error", error);
       setMessages(prev => [...prev, { 
         role: "coach", 
-        content: "I'm sorry, I'm having trouble connecting right now. Please try again in a moment." 
+        content: error.message || "AI coach is temporarily unavailable. Please try again in a moment." 
       }]);
     } finally {
       setIsLoading(false);
@@ -73,14 +82,14 @@ export default function CoachPage() {
         <Card className="flex-1 flex flex-col mb-4 overflow-hidden shadow-lg border-none">
           <CardContent className="flex-1 overflow-y-auto p-6 space-y-6 scroll-smooth" ref={scrollRef}>
             {messages.map((msg, i) => (
-              <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+              <div key={i} className={`flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                 <Avatar className={`h-10 w-10 border-2 ${msg.role === "coach" ? "border-primary/20" : "border-secondary/20"}`}>
                   <AvatarImage src={msg.role === "coach" ? "https://picsum.photos/seed/coach/100" : ""} />
                   <AvatarFallback className={msg.role === "coach" ? "bg-primary/10 text-primary" : "bg-secondary/10 text-secondary"}>
                     {msg.role === "coach" ? <Leaf className="h-5 w-5" /> : <User className="h-5 w-5" />}
                   </AvatarFallback>
                 </Avatar>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${
                   msg.role === "user" 
                     ? "bg-primary text-primary-foreground rounded-tr-none" 
                     : "bg-muted text-foreground rounded-tl-none border"
@@ -96,8 +105,8 @@ export default function CoachPage() {
                     <Loader2 className="h-5 w-5 animate-spin" />
                   </AvatarFallback>
                 </Avatar>
-                <div className="bg-muted rounded-2xl px-4 py-3 text-sm text-muted-foreground rounded-tl-none border">
-                  Thinking...
+                <div className="bg-muted rounded-2xl px-4 py-3 text-sm text-muted-foreground rounded-tl-none border italic">
+                  NutriVision is thinking...
                 </div>
               </div>
             )}
@@ -111,8 +120,9 @@ export default function CoachPage() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask me anything about your nutrition..."
                 className="flex-1 h-12 bg-white rounded-full px-6 focus-visible:ring-primary shadow-inner"
+                disabled={isLoading}
               />
-              <Button type="submit" size="icon" className="h-12 w-12 rounded-full shadow-lg" disabled={isLoading}>
+              <Button type="submit" size="icon" className="h-12 w-12 rounded-full shadow-lg" disabled={isLoading || !input.trim()}>
                 <Send className="h-5 w-5" />
               </Button>
             </form>

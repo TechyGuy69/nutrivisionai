@@ -20,19 +20,39 @@ const NutritionCoachChatOutputSchema = z.object({
 });
 export type NutritionCoachChatOutput = string;
 
+/**
+ * Handles the AI nutrition coaching process.
+ * Acts as a nutrition assistant to answer questions, explain values, and suggest alternatives.
+ */
 export async function nutritionCoachChat(input: NutritionCoachChatInput): Promise<NutritionCoachChatOutput> {
-  return nutritionCoachChatFlow(input);
+  try {
+    return await nutritionCoachChatFlow(input);
+  } catch (error: any) {
+    console.error("nutritionCoachChat error:", error);
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error("RATE_LIMIT_EXCEEDED");
+    }
+    throw new Error("Failed to get response from AI coach.");
+  }
 }
 
 const prompt = ai.definePrompt({
   name: 'nutritionCoachChatPrompt',
   input: {schema: NutritionCoachChatInputSchema},
   output: {schema: NutritionCoachChatOutputSchema},
-  prompt: `You are NutriVision AI, a friendly and expert AI Nutrition Coach.
-Your goal is to provide personalized, helpful, and science-based advice about food, nutrition, and health.
-Always respond in a compassionate, encouraging, and easy-to-understand manner.
-
-User's question: {{{this}}}`,
+  system: `You are NutriVision AI, a world-class nutrition assistant and expert coach. 
+  Your goal is to provide science-based, helpful, and compassionate advice.
+  
+  Responsibilities:
+  1. Answer any food or nutrition related questions accurately.
+  2. Explain complex nutritional values in simple terms.
+  3. Suggest healthier alternatives for processed foods.
+  4. Recommend creative cooking ideas and recipes.
+  5. Provide actionable diet tips based on user goals.
+  
+  Tone: Friendly, encouraging, professional, and clear.
+  Always emphasize that users should consult medical professionals for specific health conditions.`,
+  prompt: `User's question or topic: "{{{this}}}"`,
 });
 
 const nutritionCoachChatFlow = ai.defineFlow(
@@ -45,7 +65,7 @@ const nutritionCoachChatFlow = ai.defineFlow(
     const {output} = await prompt(input);
     
     if (!output || !output.advice) {
-      return "I'm sorry, I'm having trouble formulating a response right now. Could you please try rephrasing your question?";
+      return "I'm sorry, I'm having trouble formulating a nutrition tip right now. Could you please try rephrasing your question?";
     }
     
     return output.advice;
