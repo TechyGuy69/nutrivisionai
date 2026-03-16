@@ -32,22 +32,23 @@ export function Navbar() {
   // Don't show full nav if on onboarding
   const isOnboarding = pathname === '/onboarding';
   
-  // Logic for the logo link destination
+  // Logic for the logo link destination: Dashboard if onboarded, else Home
   const logoHref = hasUserId ? "/dashboard" : "/";
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href={logoHref} className="flex items-center gap-3 font-headline text-xl font-bold text-primary">
+        <Link href={logoHref} className="flex items-center gap-2 font-headline text-xl font-bold text-primary group">
           {logoData && (
-            <Image 
-              src={logoData.imageUrl} 
-              alt="NutriVision AI Logo" 
-              width={40} 
-              height={40} 
-              className="h-10 w-auto object-contain"
-              priority
-            />
+            <div className="relative h-10 w-10 overflow-hidden rounded-md transition-transform group-hover:scale-105">
+              <Image 
+                src={logoData.imageUrl} 
+                alt="NutriVision AI Logo" 
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
           )}
           <span className="hidden sm:inline">NutriVision AI</span>
         </Link>

@@ -168,15 +168,16 @@ export default function Home() {
       
       <footer className="border-t bg-muted/30 py-16">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-3 mb-6 font-headline text-2xl font-bold text-primary">
+          <div className="flex flex-col justify-center items-center gap-3 mb-6 font-headline text-2xl font-bold text-primary">
             {logoData && (
-              <Image 
-                src={logoData.imageUrl} 
-                alt="NutriVision AI Logo" 
-                width={32} 
-                height={32} 
-                className="h-8 w-auto object-contain"
-              />
+              <div className="relative h-12 w-12">
+                <Image 
+                  src={logoData.imageUrl} 
+                  alt="NutriVision AI Logo" 
+                  fill
+                  className="object-contain"
+                />
+              </div>
             )}
             <span>NutriVision AI</span>
           </div>

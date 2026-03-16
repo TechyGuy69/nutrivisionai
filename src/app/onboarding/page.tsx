@@ -68,15 +68,17 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 sm:p-8">
-      <div className="mb-8 flex items-center gap-3 font-headline text-3xl font-bold text-primary animate-in fade-in slide-in-from-top-4 duration-700">
+      <div className="mb-8 flex flex-col items-center gap-4 font-headline text-3xl font-bold text-primary animate-in fade-in slide-in-from-top-4 duration-700">
         {logoData && (
-          <Image 
-            src={logoData.imageUrl} 
-            alt="NutriVision AI Logo" 
-            width={48} 
-            height={48} 
-            className="h-12 w-auto object-contain"
-          />
+          <div className="relative h-20 w-20">
+            <Image 
+              src={logoData.imageUrl} 
+              alt="NutriVision AI Logo" 
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
         )}
         <span>NutriVision AI</span>
       </div>
