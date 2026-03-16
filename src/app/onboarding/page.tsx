@@ -1,6 +1,8 @@
+
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore } from '@/firebase';
 import { doc, setDoc } from 'firebase/firestore';
@@ -11,7 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Leaf, Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { Sparkles, Loader2, ArrowRight } from 'lucide-react';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function OnboardingPage() {
   const { user } = useUser();
@@ -26,6 +29,8 @@ export default function OnboardingPage() {
     dietaryPreference: 'Balanced',
     healthGoal: 'Balanced Diet',
   });
+
+  const logoData = PlaceHolderImages.find(img => img.id === "app-logo");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,8 +68,16 @@ export default function OnboardingPage() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4 sm:p-8">
-      <div className="mb-8 flex items-center gap-2 font-headline text-3xl font-bold text-primary animate-in fade-in slide-in-from-top-4 duration-700">
-        <Leaf className="h-8 w-8" />
+      <div className="mb-8 flex items-center gap-3 font-headline text-3xl font-bold text-primary animate-in fade-in slide-in-from-top-4 duration-700">
+        {logoData && (
+          <Image 
+            src={logoData.imageUrl} 
+            alt="NutriVision AI Logo" 
+            width={48} 
+            height={48} 
+            className="h-12 w-auto object-contain"
+          />
+        )}
         <span>NutriVision AI</span>
       </div>
 

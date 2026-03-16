@@ -1,6 +1,7 @@
+
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Camera, ChefHat, MessageSquare, ArrowRight, Leaf } from "lucide-react";
+import { Search, Camera, ChefHat, MessageSquare, ArrowRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,6 +45,8 @@ const features = [
 ];
 
 export default function Home() {
+  const logoData = PlaceHolderImages.find(img => img.id === "app-logo");
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -165,8 +168,16 @@ export default function Home() {
       
       <footer className="border-t bg-muted/30 py-16">
         <div className="container mx-auto px-4 text-center">
-          <div className="flex justify-center items-center gap-2 mb-6 font-headline text-2xl font-bold text-primary">
-            <Leaf className="h-8 w-8" />
+          <div className="flex justify-center items-center gap-3 mb-6 font-headline text-2xl font-bold text-primary">
+            {logoData && (
+              <Image 
+                src={logoData.imageUrl} 
+                alt="NutriVision AI Logo" 
+                width={32} 
+                height={32} 
+                className="h-8 w-auto object-contain"
+              />
+            )}
             <span>NutriVision AI</span>
           </div>
           <div className="flex justify-center gap-8 mb-8 text-sm font-medium text-muted-foreground">

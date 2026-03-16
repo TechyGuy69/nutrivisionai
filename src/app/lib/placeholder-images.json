@@ -2,33 +2,39 @@
 {
   "placeholderImages": [
     {
+      "id": "app-logo",
+      "description": "NutriVision AI Logo",
+      "imageUrl": "https://i.ibb.co/mVT6ZGPW/Chat-GPT-Image-Mar-16-2026-11-32-11-AM.png",
+      "imageHint": "nutrition logo"
+    },
+    {
       "id": "hero-healthy-food",
       "description": "A vibrant assortment of fresh vegetables and fruits",
       "imageUrl": "https://picsum.photos/seed/nutrition1/1200/600",
       "imageHint": "healthy food vegetables"
     },
     {
-      "id": "recipe-placeholder",
-      "description": "A delicious prepared healthy meal",
-      "imageUrl": "https://picsum.photos/seed/recipe/800/600",
-      "imageHint": "healthy meal salad"
+      "id": "feature-explorer",
+      "description": "An organized grocery store produce section",
+      "imageUrl": "https://picsum.photos/seed/explorer1/400/300",
+      "imageHint": "grocery produce"
     },
     {
       "id": "feature-recognition",
-      "description": "Smart phone scanning food",
-      "imageUrl": "https://picsum.photos/seed/scan/400/300",
-      "imageHint": "phone scanning food"
+      "description": "A smart phone taking a photo of a healthy salad",
+      "imageUrl": "https://picsum.photos/seed/scan1/400/300",
+      "imageHint": "phone scanning"
     },
     {
       "id": "feature-recipes",
-      "description": "Cooking ingredients on a table",
-      "imageUrl": "https://picsum.photos/seed/cook/400/300",
+      "description": "A rustic wooden table with fresh cooking ingredients",
+      "imageUrl": "https://picsum.photos/seed/cook1/400/300",
       "imageHint": "cooking ingredients"
     },
     {
       "id": "feature-coach",
-      "description": "Digital nutrition coach avatar",
-      "imageUrl": "https://picsum.photos/seed/coach/400/300",
+      "description": "A professional health coach holding a tablet",
+      "imageUrl": "https://picsum.photos/seed/coach1/400/300",
       "imageHint": "health coach"
     }
   ]

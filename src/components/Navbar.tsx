@@ -1,11 +1,14 @@
+
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Leaf, Search, Camera, ChefHat, MessageSquare, User } from "lucide-react";
+import { Search, Camera, ChefHat, MessageSquare, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/firebase";
 import { useState, useEffect } from "react";
+import { PlaceHolderImages } from "@/lib/placeholder-images";
 
 const navItems = [
   { name: "Explore", href: "/search", icon: Search },
@@ -24,6 +27,8 @@ export function Navbar() {
     setHasUserId(!!storedUserId);
   }, []);
 
+  const logoData = PlaceHolderImages.find(img => img.id === "app-logo");
+
   // Don't show full nav if on onboarding
   const isOnboarding = pathname === '/onboarding';
   
@@ -33,9 +38,18 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href={logoHref} className="flex items-center gap-2 font-headline text-xl font-bold text-primary">
-          <Leaf className="h-6 w-6" />
-          <span>NutriVision AI</span>
+        <Link href={logoHref} className="flex items-center gap-3 font-headline text-xl font-bold text-primary">
+          {logoData && (
+            <Image 
+              src={logoData.imageUrl} 
+              alt="NutriVision AI Logo" 
+              width={40} 
+              height={40} 
+              className="h-10 w-auto object-contain"
+              priority
+            />
+          )}
+          <span className="hidden sm:inline">NutriVision AI</span>
         </Link>
 
         {!isOnboarding && (
