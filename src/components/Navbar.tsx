@@ -40,7 +40,7 @@ export function Navbar() {
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         <Link href={logoHref} className="flex items-center gap-2 font-headline text-xl font-bold text-primary group">
           {logoData && (
-            <div className="relative h-10 w-10 overflow-hidden rounded-md transition-transform group-hover:scale-105">
+            <div className="relative h-10 w-10 transition-transform group-hover:scale-105">
               <Image 
                 src={logoData.imageUrl} 
                 alt="NutriVision AI Logo" 
