@@ -1,6 +1,12 @@
 {
   "placeholderImages": [
     {
+      "id": "app-logo",
+      "description": "NutriVision AI Logo",
+      "imageUrl": "https://i.ibb.co/mVT6ZGPW/Chat-GPT-Image-Mar-16-2026-11-32-11-AM.png",
+      "imageHint": "nutrition logo"
+    },
+    {
       "id": "hero-healthy-food",
       "description": "A vibrant assortment of fresh vegetables and fruits",
       "imageUrl": "https://picsum.photos/seed/nutrition1/1200/600",
