@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -38,19 +37,23 @@ export function Navbar() {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
-        <Link href={logoHref} className="flex items-center gap-2 font-headline text-xl font-bold text-primary group">
-          {logoData && (
-            <div className="relative h-10 w-10 transition-transform group-hover:scale-105">
+        <Link href={logoHref} className="flex items-center gap-3 font-headline text-xl font-bold text-primary group">
+          {logoData ? (
+            <div className="relative h-10 w-10 overflow-hidden rounded-lg shadow-sm border border-primary/10 transition-transform group-hover:scale-110">
               <Image 
                 src={logoData.imageUrl} 
                 alt="NutriVision AI Logo" 
                 fill
-                className="object-contain"
+                className="object-cover"
                 priority
               />
             </div>
+          ) : (
+            <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center">
+              <ChefHat className="text-primary h-6 w-6" />
+            </div>
           )}
-          <span className="hidden sm:inline">NutriVision AI</span>
+          <span className="hidden sm:inline tracking-tight">NutriVision AI</span>
         </Link>
 
         {!isOnboarding && (
@@ -74,10 +77,10 @@ export function Navbar() {
             <div className="flex items-center gap-4">
               <Link href="/profile">
                 <div className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors",
+                  "flex h-9 w-9 items-center justify-center rounded-full transition-colors border shadow-sm",
                   pathname === '/profile' 
-                    ? "bg-primary text-primary-foreground" 
-                    : "bg-primary/10 text-primary hover:bg-primary/20"
+                    ? "bg-primary text-primary-foreground border-primary" 
+                    : "bg-white text-primary hover:bg-primary/5 border-primary/20"
                 )}>
                   <User className="h-5 w-5" />
                 </div>
