@@ -5,3 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  # For Genkit and AI flows, we recommend a slightly higher timeout
+  timeoutSeconds: 60
+
+# You can also reference Secret Manager secrets here if preferred:
+# env:
+#   - variable: GEMINI_API_KEY
+#     secret: GEMINI_API_KEY_SECRET_NAME
