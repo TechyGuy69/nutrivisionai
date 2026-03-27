@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A flow to identify food from an image and provide nutritional information.
@@ -41,7 +42,7 @@ const IdentifyFoodFromImageOutputSchema = z.object({
       .describe('A list of health benefits associated with the food.'),
     risks: z
       .array(z.string())
-      .describe('A list of potential health risks or allergens.'),
+      .describe('A list of potential health risks or common allergens.'),
   }),
 });
 export type IdentifyFoodFromImageOutput = z.infer<typeof IdentifyFoodFromImageOutputSchema>;
@@ -72,8 +73,8 @@ export async function identifyFoodFromImage(
       throw new Error("The image was flagged by safety filters. Please try a clearer photo of food.");
     }
 
-    // Pass through the original error message to help with debugging production configuration
-    throw new Error(`AI Analysis Error: ${message}`);
+    // Pass through more detail to help debug configuration
+    throw new Error(`AI Analysis Error: ${message}. Ensure your GEMINI_API_KEY is correctly set.`);
   }
 }
 
