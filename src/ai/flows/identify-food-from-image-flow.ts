@@ -1,8 +1,7 @@
 'use server';
 /**
  * @fileOverview A flow to identify food from an image and provide nutritional information.
- *
- * - identifyFoodFromImage - A function that handles the food identification process from an image.
+ * Uses Gemini 2.5 Flash for high-speed visual analysis.
  */
 
 import { ai } from '@/ai/genkit';
@@ -50,16 +49,16 @@ export type IdentifyResult = {
 };
 
 /**
- * Identifies food from an image and returns nutritional data.
- * Returns a structured object to avoid generic 500 errors in production.
+ * Identifies food from an image using Gemini 2.5 Flash.
  */
 export async function identifyFoodFromImage(
   input: IdentifyFoodFromImageInput
 ): Promise<IdentifyResult> {
   try {
     const { output } = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
       prompt: [
-        { text: 'You are an expert food nutritionist. Analyze the provided image, identify the food, and provide detailed nutritional information.' },
+        { text: 'You are an expert food nutritionist. Analyze the provided image, identify the food, and provide detailed nutritional information. If you cannot identify the food, explain why.' },
         { media: { url: input.foodImage } }
       ],
       output: { schema: IdentifyFoodFromImageOutputSchema },
@@ -74,18 +73,22 @@ export async function identifyFoodFromImage(
     });
 
     if (!output) {
-      return { error: "The AI was unable to analyze this image. Please try a clearer photo." };
+      return { error: "Gemini 2.5 Flash was unable to generate a response for this image." };
     }
 
     return { data: output };
   } catch (error: any) {
-    console.error("identifyFoodFromImage error:", error);
+    console.error("Gemini 2.5 Flash Vision Error:", error);
     const message = error.message || "Unknown analysis error.";
     
-    if (message.includes('429') || message.includes('quota')) {
-      return { error: "The AI is currently busy. Please wait 60 seconds." };
+    if (message.includes('403')) {
+      return { error: "API Key Leaked: Please generate a NEW API key in Google AI Studio and update your environment variables." };
     }
     
-    return { error: `Analysis failed: ${message}. Check your API configuration.` };
+    if (message.includes('429')) {
+      return { error: "Rate limit reached. Please wait a moment." };
+    }
+    
+    return { error: `Gemini 2.5 Flash Analysis failed: ${message}` };
   }
 }

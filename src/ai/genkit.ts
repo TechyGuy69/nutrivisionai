@@ -3,7 +3,7 @@ import {googleAI} from '@genkit-ai/google-genai';
 
 /**
  * Initializes Genkit with the Google AI plugin.
- * Uses the Gemini 2.5 Flash model as per explicit user order.
+ * Strictly uses the Gemini 2.5 Flash model as per explicit order.
  */
 export const ai = genkit({
   plugins: [
