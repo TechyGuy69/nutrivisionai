@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { searchFoods, type FoodItemInfo } from '@/ai/flows/food-search-flow';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * Mapping of USDA Nutrient IDs to our internal fields.
  * Ref: https://fdc.nal.usda.gov/download-datasets.html
