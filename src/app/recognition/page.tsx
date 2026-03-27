@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useRef } from "react";
@@ -6,22 +5,36 @@ import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { identifyFoodFromImage, IdentifyFoodFromImageOutput } from "@/ai/flows/identify-food-from-image-flow";
-import { Camera, Upload, Loader2, Apple, Flame, Zap, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Camera, Upload, Loader2, Apple, Flame, Zap, ShieldCheck, AlertTriangle, RefreshCcw } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useToast } from "@/hooks/use-toast";
 
 export default function RecognitionPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [image, setImage] = useState<string | null>(null);
   const [result, setResult] = useState<IdentifyFoodFromImageOutput | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Basic check for file size (e.g., 4MB limit for better responsiveness)
+      if (file.size > 4 * 1024 * 1024) {
+        toast({
+          variant: "destructive",
+          title: "File too large",
+          description: "Please select an image smaller than 4MB for faster processing.",
+        });
+        return;
+      }
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setImage(reader.result as string);
+        setError(null);
         analyzeImage(reader.result as string);
       };
       reader.readAsDataURL(file);
@@ -31,14 +44,27 @@ export default function RecognitionPage() {
   const analyzeImage = async (base64Image: string) => {
     setIsAnalyzing(true);
     setResult(null);
+    setError(null);
     try {
       const output = await identifyFoodFromImage({ foodImage: base64Image });
       setResult(output);
-    } catch (error) {
-      console.error("Failed to analyze image", error);
+    } catch (err: any) {
+      console.error("Failed to analyze image", err);
+      setError(err.message || "An unexpected error occurred during analysis.");
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: err.message || "Please check your internet connection or API settings.",
+      });
     } finally {
       setIsAnalyzing(false);
     }
+  };
+
+  const resetScanner = () => {
+    setImage(null);
+    setResult(null);
+    setError(null);
   };
 
   return (
@@ -71,7 +97,7 @@ export default function RecognitionPage() {
                       <Camera className="h-8 w-8 text-primary" />
                     </div>
                     <p className="font-semibold">Click to capture or upload</p>
-                    <p className="text-sm text-muted-foreground mt-1">Supports JPG, PNG</p>
+                    <p className="text-sm text-muted-foreground mt-1">Supports JPG, PNG (Max 4MB)</p>
                   </div>
                 )}
                 <input 
@@ -87,11 +113,11 @@ export default function RecognitionPage() {
                 <div className="flex gap-2">
                   <Button 
                     className="flex-1" 
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={resetScanner}
                     variant="outline"
                   >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Retake / Change
+                    <RefreshCcw className="h-4 w-4 mr-2" />
+                    Clear / Reset
                   </Button>
                   <Button 
                     className="flex-1" 
@@ -112,6 +138,15 @@ export default function RecognitionPage() {
                   <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
                   <h3 className="text-xl font-semibold mb-2">Analyzing your meal...</h3>
                   <p className="text-muted-foreground text-sm">Identifying ingredients and calculating nutrition using advanced AI.</p>
+                </Card>
+              ) : error ? (
+                <Card className="h-full flex flex-col items-center justify-center p-12 text-center border-destructive/20 bg-destructive/5">
+                  <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+                  <h3 className="text-xl font-semibold text-destructive mb-2">Analysis Error</h3>
+                  <p className="text-muted-foreground text-sm mb-6">{error}</p>
+                  <Button onClick={() => image && analyzeImage(image)} variant="outline" className="border-destructive/30 hover:bg-destructive/10">
+                    Try Again
+                  </Button>
                 </Card>
               ) : result ? (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
@@ -167,11 +202,15 @@ export default function RecognitionPage() {
                             Risks
                           </h4>
                           <div className="flex flex-wrap gap-1.5">
-                            {result.nutritionalInfo.risks.map((r, i) => (
-                              <span key={i} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-full border border-red-100">
-                                {r}
-                              </span>
-                            ))}
+                            {result.nutritionalInfo.risks.length > 0 ? (
+                                result.nutritionalInfo.risks.map((r, i) => (
+                                    <span key={i} className="text-xs bg-red-50 text-red-700 px-2 py-1 rounded-full border border-red-100">
+                                      {r}
+                                    </span>
+                                  ))
+                            ) : (
+                                <span className="text-xs text-muted-foreground italic">None identified</span>
+                            )}
                           </div>
                         </section>
                       </div>
@@ -184,8 +223,9 @@ export default function RecognitionPage() {
                 </div>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center p-12 text-center bg-muted/20 border-2 border-dashed rounded-xl">
-                  <Loader2 className="h-10 w-10 text-muted-foreground opacity-20 mb-4" />
+                  <Camera className="h-10 w-10 text-muted-foreground opacity-20 mb-4" />
                   <h3 className="text-lg font-medium text-muted-foreground">Analysis result will appear here</h3>
+                  <p className="text-xs text-muted-foreground mt-2 max-w-[200px]">Upload a clear photo of your food to get detailed facts.</p>
                 </div>
               )}
             </div>

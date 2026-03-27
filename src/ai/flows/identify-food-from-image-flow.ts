@@ -49,7 +49,19 @@ export type IdentifyFoodFromImageOutput = z.infer<typeof IdentifyFoodFromImageOu
 export async function identifyFoodFromImage(
   input: IdentifyFoodFromImageInput
 ): Promise<IdentifyFoodFromImageOutput> {
-  return identifyFoodFromImageFlow(input);
+  try {
+    return await identifyFoodFromImageFlow(input);
+  } catch (error: any) {
+    console.error("identifyFoodFromImage wrapper error:", error);
+    if (error.message?.includes('429') || error.message?.includes('quota')) {
+      throw new Error("The Vision AI is currently busy. Please wait a moment and try again.");
+    }
+    // Handle image size limits or general errors
+    if (error.message?.includes('413')) {
+      throw new Error("The image file is too large. Please try a smaller photo.");
+    }
+    throw new Error("Failed to analyze the image. Please ensure your API key is correctly configured in production.");
+  }
 }
 
 const identifyFoodFromImagePrompt = ai.definePrompt({
@@ -78,15 +90,10 @@ const identifyFoodFromImageFlow = ai.defineFlow(
     outputSchema: IdentifyFoodFromImageOutputSchema,
   },
   async (input) => {
-    try {
-      const { output } = await identifyFoodFromImagePrompt(input);
-      if (!output) {
-        throw new Error("Failed to identify food from image.");
-      }
-      return output;
-    } catch (error) {
-      console.error("Genkit identify food from image error:", error);
-      throw error;
+    const { output } = await identifyFoodFromImagePrompt(input);
+    if (!output) {
+      throw new Error("Failed to identify food from image.");
     }
+    return output;
   }
 );

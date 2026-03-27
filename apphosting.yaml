@@ -8,7 +8,9 @@ runConfig:
   # For Genkit and AI flows, we recommend a slightly higher timeout
   timeoutSeconds: 60
 
-# You can also reference Secret Manager secrets here if preferred:
-# env:
-#   - variable: GEMINI_API_KEY
-#     secret: GEMINI_API_KEY_SECRET_NAME
+# Environment variables for production.
+# Note: Ensure you have added the GEMINI_API_KEY to Secret Manager in your Google Cloud project
+# and granted the App Hosting service account access to it.
+env:
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
