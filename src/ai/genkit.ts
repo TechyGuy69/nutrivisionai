@@ -3,7 +3,7 @@ import {googleAI} from '@genkit-ai/google-genai';
 
 /**
  * Initializes Genkit with the Google AI plugin.
- * Uses a valid model identifier (gemini-1.5-flash) to prevent API errors.
+ * Uses the requested Gemini 2.5 Flash model.
  */
 export const ai = genkit({
   plugins: [
@@ -11,5 +11,5 @@ export const ai = genkit({
       apiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY || process.env.GOOGLE_API_KEY
     })
   ],
-  model: 'googleai/gemini-1.5-flash',
+  model: 'googleai/gemini-2.5-flash',
 });
