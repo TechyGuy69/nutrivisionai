@@ -62,9 +62,9 @@ export default function RecipesPage() {
       } else if (result.data) {
         setRecipe(result.data);
       }
-    } catch (err) {
-      console.error("Critical Recipe Error:", err);
-      setError("An unexpected error occurred while cooking.");
+    } catch (err: any) {
+      console.error("Recipe Error:", err);
+      setError("An unexpected error occurred. Please check your API configuration.");
     } finally {
       setIsGenerating(false);
     }
@@ -78,7 +78,7 @@ export default function RecipesPage() {
           <header className="text-center mb-10">
             <h1 className="text-3xl font-bold font-headline mb-4">AI Recipe Crafter</h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Powered by Gemini 2.5 Flash. Turn your pantry items into healthy meals.
+              Powered by Gemini 2.5 Flash. Turn your pantry items into healthy, personalized meals.
             </p>
           </header>
 
@@ -147,12 +147,15 @@ export default function RecipesPage() {
                 <div className="h-full flex flex-col items-center justify-center p-20 bg-primary/5 rounded-2xl border-2 border-dashed border-primary/20">
                   <ChefHat className="h-16 w-16 text-primary animate-bounce mb-4" />
                   <h3 className="text-2xl font-bold">Creating your recipe...</h3>
+                  <p className="text-muted-foreground mt-2">Gemini 2.5 Flash is formulating the perfect dish.</p>
                 </div>
               ) : error ? (
                 <Card className="h-full flex flex-col items-center justify-center p-12 text-center border-destructive/20 bg-destructive/5">
                   <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
                   <h3 className="text-xl font-semibold text-destructive mb-2">Cooking Failed</h3>
-                  <p className="text-muted-foreground text-sm">{error}</p>
+                  <div className="text-muted-foreground text-sm bg-white p-4 rounded border text-left overflow-auto max-h-40">
+                    {error}
+                  </div>
                 </Card>
               ) : recipe ? (
                 <Card className="animate-in fade-in zoom-in duration-500 overflow-hidden shadow-xl border-none">

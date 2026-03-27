@@ -10,7 +10,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 
-export const maxDuration = 60; // Increase Vercel timeout
+export const maxDuration = 60;
 
 export default function RecognitionPage() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -23,8 +23,6 @@ export default function RecognitionPage() {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Adjusted limit: Vercel has a 4.5MB payload limit. 
-      // Base64 encoding adds ~33% overhead, so we limit to 3MB original file size.
       if (file.size > 3 * 1024 * 1024) {
         toast({
           variant: "destructive",
@@ -63,8 +61,8 @@ export default function RecognitionPage() {
         setResult(response.data);
       }
     } catch (err: any) {
-      console.error("Critical Scanner Error:", err);
-      setError("An unexpected error occurred. Please refresh and try again.");
+      console.error("Scanner Error:", err);
+      setError("An unexpected error occurred. Check your API key and connection.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -84,7 +82,7 @@ export default function RecognitionPage() {
           <header className="text-center mb-10">
             <h1 className="text-3xl font-bold font-headline mb-4">Visual Food Recognition</h1>
             <p className="text-muted-foreground max-w-xl mx-auto">
-              Snap a photo of your meal to instantly discover its nutritional value and health benefits.
+              Powered by Gemini 2.5 Flash. Snap a photo of your meal to discover its nutritional profile.
             </p>
           </header>
 
@@ -144,13 +142,15 @@ export default function RecognitionPage() {
                 <Card className="h-full flex flex-col items-center justify-center p-12 text-center bg-primary/5 border-primary/20">
                   <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
                   <h3 className="text-xl font-semibold mb-2">Analyzing your meal...</h3>
-                  <p className="text-muted-foreground text-sm">Identifying ingredients and calculating nutrition via Gemini 2.5 Flash.</p>
+                  <p className="text-muted-foreground text-sm">Querying Gemini 2.5 Flash for expert insights.</p>
                 </Card>
               ) : error ? (
                 <Card className="h-full flex flex-col items-center justify-center p-12 text-center border-destructive/20 bg-destructive/5">
                   <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
                   <h3 className="text-xl font-semibold text-destructive mb-2">Analysis Error</h3>
-                  <p className="text-muted-foreground text-sm mb-6">{error}</p>
+                  <div className="text-muted-foreground text-sm mb-6 bg-white p-4 rounded border text-left overflow-auto max-h-40">
+                    {error}
+                  </div>
                   <Button onClick={() => image && analyzeImage(image)} variant="outline">
                     Retry Scan
                   </Button>
