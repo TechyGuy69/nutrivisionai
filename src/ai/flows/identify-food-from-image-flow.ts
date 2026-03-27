@@ -46,6 +46,10 @@ const IdentifyFoodFromImageOutputSchema = z.object({
 });
 export type IdentifyFoodFromImageOutput = z.infer<typeof IdentifyFoodFromImageOutputSchema>;
 
+/**
+ * Identifies food from an image and returns nutritional data.
+ * Includes detailed error handling to surface API issues or safety blocks.
+ */
 export async function identifyFoodFromImage(
   input: IdentifyFoodFromImageInput
 ): Promise<IdentifyFoodFromImageOutput> {
@@ -53,14 +57,23 @@ export async function identifyFoodFromImage(
     return await identifyFoodFromImageFlow(input);
   } catch (error: any) {
     console.error("identifyFoodFromImage wrapper error:", error);
-    if (error.message?.includes('429') || error.message?.includes('quota')) {
-      throw new Error("The Vision AI is currently busy. Please wait a moment and try again.");
+    
+    const message = error.message || "Unknown error occurred during vision analysis.";
+    
+    if (message.includes('429') || message.includes('quota')) {
+      throw new Error("The Vision AI is currently busy (Rate limit reached). Please wait a moment and try again.");
     }
-    // Handle image size limits or general errors
-    if (error.message?.includes('413')) {
+    
+    if (message.includes('413')) {
       throw new Error("The image file is too large. Please try a smaller photo.");
     }
-    throw new Error("Failed to analyze the image. Please ensure your API key is correctly configured in production.");
+
+    if (message.includes('SAFETY')) {
+      throw new Error("The image was flagged by safety filters. Please try a clearer photo of food.");
+    }
+
+    // Pass through the original error message to help with debugging production configuration
+    throw new Error(`AI Analysis Error: ${message}`);
   }
 }
 
@@ -68,6 +81,14 @@ const identifyFoodFromImagePrompt = ai.definePrompt({
   name: 'identifyFoodFromImagePrompt',
   input: { schema: IdentifyFoodFromImageInputSchema },
   output: { schema: IdentifyFoodFromImageOutputSchema },
+  config: {
+    safetySettings: [
+      { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+      { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+    ],
+  },
   prompt: `You are an expert food nutritionist. Your task is to analyze the provided image of food, identify the food item, and extract detailed nutritional information.
 
 Image: {{media url=foodImage}}
@@ -92,7 +113,7 @@ const identifyFoodFromImageFlow = ai.defineFlow(
   async (input) => {
     const { output } = await identifyFoodFromImagePrompt(input);
     if (!output) {
-      throw new Error("Failed to identify food from image.");
+      throw new Error("The AI was unable to generate a response for this image.");
     }
     return output;
   }
