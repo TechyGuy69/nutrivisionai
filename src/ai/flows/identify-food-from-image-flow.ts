@@ -81,8 +81,12 @@ export async function identifyFoodFromImage(
     console.error("Gemini 2.5 Flash Vision Error:", error);
     const message = error.message || "Unknown analysis error.";
     
+    if (message.includes('API key expired')) {
+      return { error: "API Key Expired: Please go to Google AI Studio (aistudio.google.com), renew your key, and update your environment variables." };
+    }
+
     if (message.includes('403')) {
-      return { error: "API Key Leaked: Please generate a NEW API key in Google AI Studio and update your environment variables." };
+      return { error: "Access Denied: Your API key might be leaked or restricted. Please generate a NEW API key in Google AI Studio." };
     }
     
     if (message.includes('429')) {
