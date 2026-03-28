@@ -32,6 +32,10 @@ const FoodSearchOutputSchema = z.object({
   foods: z.array(FoodItemSchema).describe('A list of matching food items.')
 });
 
+// Simple in-memory cache to reduce AI calls for the same item in a short period
+const detailCache = new Map<string, { data: FoodItemInfo, timestamp: number }>();
+const CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+
 /**
  * Searches for food items based on a query.
  * @param query The search query.
@@ -94,8 +98,19 @@ const searchFoodsFlow = ai.defineFlow(
  * @returns A promise that resolves to the food item details, or null if not found.
  */
 export async function getFoodDetails(idOrName: string): Promise<FoodItemInfo | null> {
+  const cacheKey = idOrName.toLowerCase().trim();
+  const cached = detailCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+
   try {
-    return await getFoodDetailsFlow(idOrName);
+    const result = await getFoodDetailsFlow(idOrName);
+    if (result) {
+      detailCache.set(cacheKey, { data: result, timestamp: Date.now() });
+    }
+    return result;
   } catch (error: any) {
     console.error("getFoodDetails error:", error);
     if (error.message?.includes('429') || error.message?.includes('quota')) {
@@ -113,6 +128,7 @@ const getFoodDetailsFlow = ai.defineFlow(
   },
   async (idOrName) => {
     const { output } = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
       prompt: `You are a world-class nutritionist. Provide a comprehensive nutritional and health profile for: "${idOrName}". 
       Provide expert-estimated values per 100g if exact lab data is unavailable.`,
       output: { schema: FoodItemSchema },

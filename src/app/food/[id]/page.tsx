@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Info, ShieldCheck, AlertTriangle, Salad, Zap, Flame, Loader2, ChevronLeft, Beaker, Heart } from "lucide-react";
+import { Info, ShieldCheck, AlertTriangle, Salad, Zap, Flame, Loader2, ChevronLeft, Beaker, Heart, RefreshCw, Clock } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { getFoodDetails, type FoodItemInfo } from "@/ai/flows/food-search-flow";
@@ -22,6 +21,7 @@ export default function FoodDetailPage() {
   const [food, setFood] = useState<FoodItemInfo | null>(null);
   const [foodImageUrl, setFoodImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
 
@@ -40,41 +40,49 @@ export default function FoodDetailPage() {
     }
   }, [favoriteDocs]);
 
-  useEffect(() => {
-    async function fetchFoodAndImage() {
-      if (!id) return;
-      setIsLoading(true);
-      try {
-        const decodedId = decodeURIComponent(id);
-        const data = await getFoodDetails(decodedId);
+  const fetchFoodAndImage = useCallback(async () => {
+    if (!id) return;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const decodedId = decodeURIComponent(id);
+      const data = await getFoodDetails(decodedId);
+      
+      if (!data) {
+        setFood(null);
+      } else {
         setFood(data);
-
-        if (data) {
-          try {
-            const imageResponse = await fetch(`/api/food-image?q=${encodeURIComponent(data.name)}`);
-            if (imageResponse.ok) {
-              const imageData = await imageResponse.json();
-              setFoodImageUrl(imageData.url);
-            }
-          } catch (imgError) {
-            console.error("Error fetching food image:", imgError);
+        try {
+          const imageResponse = await fetch(`/api/food-image?q=${encodeURIComponent(data.name)}`);
+          if (imageResponse.ok) {
+            const imageData = await imageResponse.json();
+            setFoodImageUrl(imageData.url);
           }
+        } catch (imgError) {
+          console.error("Error fetching food image:", imgError);
         }
-      } catch (error) {
-        console.error("Error fetching food details:", error);
-      } finally {
-        setIsLoading(false);
       }
+    } catch (err: any) {
+      console.error("Error fetching food details:", err);
+      if (err.message === 'RATE_LIMIT_EXCEEDED') {
+        setError("AI_BUSY");
+      } else {
+        setError("UNKNOWN");
+      }
+    } finally {
+      setIsLoading(false);
     }
-    fetchFoodAndImage();
   }, [id]);
+
+  useEffect(() => {
+    fetchFoodAndImage();
+  }, [fetchFoodAndImage]);
 
   const toggleFavorite = async () => {
     if (!user || !db || !food || isFavoriting) return;
     setIsFavoriting(true);
     try {
       if (isFavorite) {
-        // Remove from favorites
         const q = query(collection(db, 'users', user.uid, 'favorites'), where('title', '==', food.name));
         const snapshot = await getDocs(q);
         snapshot.forEach((d) => {
@@ -82,7 +90,6 @@ export default function FoodDetailPage() {
         });
         setIsFavorite(false);
       } else {
-        // Add to favorites
         await addDoc(collection(db, 'users', user.uid, 'favorites'), {
           type: 'food',
           title: food.name,
@@ -102,14 +109,42 @@ export default function FoodDetailPage() {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 flex-col items-center justify-center gap-4">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-sm font-medium text-muted-foreground animate-pulse uppercase tracking-widest">Consulting AI Nutritionist...</p>
         </div>
       </div>
     );
   }
 
-  if (!food) {
+  if (error === "AI_BUSY") {
+    return (
+      <div className="flex min-h-screen flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center p-4">
+          <Card className="max-w-md w-full shadow-2xl border-none text-center p-8 bg-white">
+            <div className="bg-orange-500/10 p-4 rounded-full w-fit mx-auto mb-6">
+              <Clock className="h-10 w-10 text-orange-500" />
+            </div>
+            <h1 className="text-2xl font-bold font-headline mb-4">AI Service is Busy</h1>
+            <p className="text-muted-foreground mb-8 leading-relaxed">
+              Our high-speed Gemini 2.5 Flash model is currently receiving many requests. Please wait about 30-60 seconds and try again.
+            </p>
+            <div className="flex flex-col gap-3">
+              <Button onClick={() => fetchFoodAndImage()} className="gap-2 h-12 text-lg">
+                <RefreshCw className="h-5 w-5" /> Retry Now
+              </Button>
+              <Link href="/search" className="w-full">
+                <Button variant="outline" className="w-full h-12">Back to Search</Button>
+              </Link>
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
+  if (!food || error) {
     return (
       <div className="flex min-h-screen flex-col bg-background">
         <Navbar />
@@ -117,6 +152,7 @@ export default function FoodDetailPage() {
           <div className="text-center bg-white p-8 rounded-2xl shadow-sm border max-w-md">
             <Info className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h1 className="text-2xl font-bold mb-4">Food Not Found</h1>
+            <p className="text-muted-foreground mb-6">We couldn't retrieve details for this item at the moment.</p>
             <Link href="/search"><Button variant="outline">Back to Search</Button></Link>
           </div>
         </main>
@@ -124,7 +160,7 @@ export default function FoodDetailPage() {
     );
   }
 
-  const displayImageUrl = foodImageUrl || "https://picsum.photos/seed/food/1000/500";
+  const displayImageUrl = foodImageUrl || `https://picsum.photos/seed/${encodeURIComponent(food.name)}/1000/500`;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
