@@ -1,22 +1,17 @@
-
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X, AlertCircle, Heart } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { type FoodItemInfo } from "@/ai/flows/food-search-flow";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { collection, addDoc, deleteDoc, query, where, getDocs, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
-
-// Simple client-side cache to reduce API calls
-const suggestionCache: Record<string, FoodItemInfo[]> = {};
 
 export default function SearchPage() {
   const { user } = useUser();
@@ -25,14 +20,10 @@ export default function SearchPage() {
   
   const [queryStr, setQueryStr] = useState("");
   const [results, setResults] = useState<FoodItemInfo[]>([]);
-  const [suggestions, setSuggestions] = useState<FoodItemInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSuggesting, setIsSuggesting] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const searchRef = useRef<HTMLDivElement>(null);
 
   // Fetch current favorites to highlight them in search results
   const favoritesQuery = useMemoFirebase(() => {
@@ -46,61 +37,11 @@ export default function SearchPage() {
     return favorites?.some(fav => fav.title === name);
   };
 
-  // Debounce logic for suggestions - increased to 1000ms to save API quota
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const q = queryStr.trim();
-      if (q.length > 2) {
-        if (suggestionCache[q]) {
-          setSuggestions(suggestionCache[q]);
-          setShowSuggestions(true);
-        } else {
-          fetchSuggestions(q);
-        }
-      } else {
-        setSuggestions([]);
-        setShowSuggestions(false);
-      }
-    }, 1000);
-
-    return () => clearTimeout(timer);
-  }, [queryStr]);
-
-  // Close suggestions when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  const fetchSuggestions = async (q: string) => {
-    setIsSuggesting(true);
-    try {
-      const response = await fetch(`/api/food-search?q=${encodeURIComponent(q)}`);
-      if (response.ok) {
-        const data = await response.json();
-        const results = Array.isArray(data) ? data.slice(0, 5) : [];
-        setSuggestions(results);
-        suggestionCache[q] = results;
-        setShowSuggestions(true);
-      }
-    } catch (error) {
-      console.error("Suggestions error:", error);
-    } finally {
-      setIsSuggesting(false);
-    }
-  };
-
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
     const q = queryStr.trim();
     if (!q) return;
 
-    setShowSuggestions(false);
     setIsLoading(true);
     setHasSearched(true);
     setError(null);
@@ -110,15 +51,13 @@ export default function SearchPage() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         if (response.status === 429) {
-          throw new Error("AI is currently busy processing other requests. Please wait about 30-60 seconds and try again.");
+          throw new Error("AI is currently busy. Please wait about 30-60 seconds and try again.");
         }
         throw new Error(errData.message || "The AI service is currently unavailable.");
       }
       const data = await response.json();
       const results = Array.isArray(data) ? data : [];
       setResults(results);
-      // Cache the full search too
-      suggestionCache[q] = results.slice(0, 5);
     } catch (error: any) {
       console.error("Search error:", error);
       setError(error.message || "Failed to retrieve food data. Please try again later.");
@@ -164,8 +103,6 @@ export default function SearchPage() {
 
   const clearSearch = () => {
     setQueryStr("");
-    setSuggestions([]);
-    setShowSuggestions(false);
     setError(null);
     setHasSearched(false);
     setResults([]);
@@ -181,14 +118,13 @@ export default function SearchPage() {
             <p className="text-muted-foreground">Search our database powered by Gemini 2.5 Flash for detailed nutritional facts.</p>
           </header>
           
-          <div ref={searchRef} className="relative mb-10">
+          <div className="relative mb-10">
             <form onSubmit={handleSearch} className="flex gap-2">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
                   value={queryStr}
                   onChange={(e) => setQueryStr(e.target.value)}
-                  onFocus={() => queryStr.length > 2 && setShowSuggestions(true)}
                   placeholder="Search raw foods or cooked dishes..." 
                   className="pl-10 pr-10 h-12 text-lg bg-white shadow-sm rounded-xl focus-visible:ring-primary"
                 />
@@ -206,42 +142,6 @@ export default function SearchPage() {
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Explore"}
               </Button>
             </form>
-
-            {/* Suggestions Dropdown */}
-            {showSuggestions && (suggestions.length > 0 || isSuggesting) && (
-              <Card className="absolute z-50 w-full mt-2 shadow-2xl border-primary/10 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <CardContent className="p-0">
-                  {isSuggesting ? (
-                    <div className="p-4 flex items-center justify-center text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      Searching suggestions...
-                    </div>
-                  ) : (
-                    <ul className="divide-y">
-                      {suggestions.map((item) => (
-                        <li key={item.id}>
-                          <Link 
-                            href={`/food/${encodeURIComponent(item.name)}`}
-                            className="flex items-center justify-between p-4 hover:bg-primary/5 transition-colors group"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="bg-primary/5 p-2 rounded-lg text-primary group-hover:bg-primary group-hover:text-white transition-colors">
-                                <Utensils className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <div className="font-semibold group-hover:text-primary transition-colors">{item.name}</div>
-                                <div className="text-xs text-muted-foreground">{item.category} • {item.calories} kcal</div>
-                              </div>
-                            </div>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </CardContent>
-              </Card>
-            )}
           </div>
 
           <div className="grid gap-4">
