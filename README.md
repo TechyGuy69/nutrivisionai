@@ -1,43 +1,52 @@
 # NutriVision AI
 
-NutriVision AI is a modern nutrition companion built with Next.js, Firebase, and Google Gemini.
+NutriVision AI is a high-performance nutrition companion built with Next.js 15, Firebase, and Google's Gemini 2.5 Flash. It provides visual food recognition, structured nutritional data exploration, and personalized AI coaching.
 
-## 🚀 Getting Started
+## 🚀 Tech Stack
+
+- **Framework:** [Next.js 15 (App Router)](https://nextjs.org/)
+- **AI Engine:** [Google Genkit](https://github.com/firebase/genkit)
+- **AI Model:** **Gemini 2.5 Flash** (Multimodal: Text, Vision, Reasoning)
+- **Database:** [Firebase Firestore](https://firebase.google.com/docs/firestore)
+- **Authentication:** [Firebase Authentication](https://firebase.google.com/docs/auth) (Anonymous Sign-in)
+- **Styling:** [Tailwind CSS](https://tailwindcss.com/) & [Shadcn UI](https://ui.shadcn.com/)
+- **Icons:** [Lucide React](https://lucide.dev/)
+- **Deployment:** Vercel / Firebase App Hosting
+
+## 🏗 Architecture & Features
+
+### 1. Visual Food Recognition
+Uses **Gemini 2.5 Flash** to analyze uploaded photos. It identifies the food item and estimates calories, protein, carbs, and fats directly from pixels.
+
+### 2. Food Data Explorer
+An AI-powered search engine that queries a vast nutritional database. It uses a hybrid approach:
+- **Primary:** USDA FoodData Central API (if configured).
+- **Secondary:** Gemini 2.5 Flash for expert estimation on cooked dishes and complex meals.
+
+### 3. AI Recipe Crafter
+Generates personalized recipes based on ingredients you have in your fridge. It respects dietary preferences (Vegan, Keto, etc.) and provides step-by-step instructions.
+
+### 4. AI Healthy Meal Coach
+A conversational agent trained as a professional nutritionist. It answers questions about diet, suggests healthier alternatives, and provides encouraging feedback.
+
+### 5. Personalization & History
+- **Profiles:** Onboarding flow to capture goals and allergies.
+- **Activity History:** Automatically logs every scan and recipe.
+- **Favorites:** One-click bookmarking of food items from search results or detail pages.
+
+## 📱 Getting Started
 
 1. **Clone the repository**
 2. **Install dependencies:** `npm install`
-3. **Set up local environment variables:**
-   Create a `.env` file in the root directory and add:
+3. **Set up environment variables:**
+   Create a `.env` file with:
    ```env
-   GEMINI_API_KEY=your_gemini_key
-   SPOONACULAR_API_KEY=your_spoonacular_key
-   USDA_API_KEY=your_usda_key_optional
+   GEMINI_API_KEY=your_key
+   SPOONACULAR_API_KEY=your_key (for food images)
+   USDA_API_KEY=your_key (optional)
    ```
-4. **Run development server:** `npm run dev`
+4. **Run development:** `npm run dev`
 
-## 🛠 Deployment & API Keys
+## 🛠 Production Deployment (Vercel/Firebase)
 
-**CRITICAL:** Never commit your API keys to GitHub. Your local `.env` file is ignored by git. For production, you must set these keys in your hosting environment.
-
-### Adding API Keys in Firebase App Hosting (Production)
-
-1. Go to the [Firebase Console](https://console.firebase.google.com/).
-2. Select your project and navigate to **App Hosting**.
-3. Select your backend and click on the **Settings** tab.
-4. Go to **Environment Variables**.
-5. Add the following keys:
-   - `GEMINI_API_KEY`
-   - `SPOONACULAR_API_KEY`
-   - `USDA_API_KEY` (if applicable)
-6. Click **Save**. You may need to trigger a new rollout for changes to take effect.
-
-### Adding Secrets on GitHub (for Actions/CI)
-
-If you use GitHub Actions for automated tasks, add your keys under **Settings > Secrets and variables > Actions** in your GitHub repository. Note that these are separate from the runtime environment variables in Firebase.
-
-## 📱 Features
-
-- **Food Data Explorer:** Search for nutritional facts.
-- **Visual Food Recognition:** Analyze meals from photos.
-- **Recipe Crafter:** Generate recipes from ingredients.
-- **AI Healthy Meal Coach:** Chat for personalized advice.
+**CRITICAL:** In production, you must add `GEMINI_API_KEY` to your environment variables in your hosting dashboard (Vercel Settings or Firebase App Hosting Settings). Without this, AI features will fail.
