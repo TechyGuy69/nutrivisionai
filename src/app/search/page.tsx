@@ -5,16 +5,22 @@ import { useState, useEffect, useRef } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X, AlertCircle } from "lucide-react";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Search, ChevronRight, Apple, Info, Loader2, Utensils, X, AlertCircle, Heart } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FoodItemInfo } from "@/ai/flows/food-search-flow";
 import { cn } from "@/lib/utils";
+import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { collection, addDoc, deleteDoc, query, where, getDocs, doc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SearchPage() {
-  const router = useRouter();
-  const [query, setQuery] = useState("");
+  const { user } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
+  
+  const [queryStr, setQueryStr] = useState("");
   const [results, setResults] = useState<FoodItemInfo[]>([]);
   const [suggestions, setSuggestions] = useState<FoodItemInfo[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -22,13 +28,26 @@ export default function SearchPage() {
   const [hasSearched, setHasSearched] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  // Fetch current favorites to highlight them in search results
+  const favoritesQuery = useMemoFirebase(() => {
+    if (!user || !db) return null;
+    return query(collection(db, 'users', user.uid, 'favorites'), where('type', '==', 'food'));
+  }, [user, db]);
+
+  const { data: favorites } = useCollection(favoritesQuery);
+
+  const isFavorited = (name: string) => {
+    return favorites?.some(fav => fav.title === name);
+  };
 
   // Debounce logic for suggestions
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (query.trim().length > 1) {
-        fetchSuggestions(query);
+      if (queryStr.trim().length > 1) {
+        fetchSuggestions(queryStr);
       } else {
         setSuggestions([]);
         setShowSuggestions(false);
@@ -36,7 +55,7 @@ export default function SearchPage() {
     }, 400);
 
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [queryStr]);
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -67,7 +86,7 @@ export default function SearchPage() {
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!query.trim()) return;
+    if (!queryStr.trim()) return;
 
     setShowSuggestions(false);
     setIsLoading(true);
@@ -75,7 +94,7 @@ export default function SearchPage() {
     setError(null);
     
     try {
-      const response = await fetch(`/api/food-search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/food-search?q=${encodeURIComponent(queryStr)}`);
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         throw new Error(errData.message || "The AI service is currently unavailable.");
@@ -91,8 +110,42 @@ export default function SearchPage() {
     }
   };
 
+  const toggleFavorite = async (e: React.MouseEvent, food: FoodItemInfo) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user || !db || processingId) return;
+    
+    setProcessingId(food.id);
+    const alreadyFavorited = isFavorited(food.name);
+
+    try {
+      if (alreadyFavorited) {
+        const q = query(collection(db, 'users', user.uid, 'favorites'), where('title', '==', food.name));
+        const snapshot = await getDocs(q);
+        snapshot.forEach((d) => {
+          deleteDoc(doc(db, 'users', user.uid, 'favorites', d.id));
+        });
+        toast({ title: "Removed from favorites" });
+      } else {
+        await addDoc(collection(db, 'users', user.uid, 'favorites'), {
+          type: 'food',
+          title: food.name,
+          timestamp: new Date().toISOString(),
+          details: food
+        });
+        toast({ title: "Added to favorites", description: `${food.name} saved!` });
+      }
+    } catch (err) {
+      console.error("Favoriting error", err);
+      toast({ variant: "destructive", title: "Action failed" });
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   const clearSearch = () => {
-    setQuery("");
+    setQueryStr("");
     setSuggestions([]);
     setShowSuggestions(false);
     setError(null);
@@ -115,13 +168,13 @@ export default function SearchPage() {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                 <Input 
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onFocus={() => query.length > 1 && setShowSuggestions(true)}
+                  value={queryStr}
+                  onChange={(e) => setQueryStr(e.target.value)}
+                  onFocus={() => queryStr.length > 1 && setShowSuggestions(true)}
                   placeholder="Search raw foods or cooked dishes..." 
                   className="pl-10 pr-10 h-12 text-lg bg-white shadow-sm rounded-xl focus-visible:ring-primary"
                 />
-                {query && (
+                {queryStr && (
                   <button 
                     type="button"
                     onClick={clearSearch}
@@ -206,7 +259,25 @@ export default function SearchPage() {
                           </div>
                         </div>
                       </div>
-                      <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      <div className="flex items-center gap-2">
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className={cn(
+                            "rounded-full transition-all hover:bg-destructive/10",
+                            isFavorited(item.name) ? "text-red-500 hover:text-red-600" : "text-muted-foreground hover:text-red-400"
+                          )}
+                          onClick={(e) => toggleFavorite(e, item)}
+                          disabled={processingId === item.id}
+                        >
+                          {processingId === item.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <Heart className={cn("h-5 w-5", isFavorited(item.name) && "fill-current")} />
+                          )}
+                        </Button>
+                        <ChevronRight className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
                     </CardHeader>
                   </Card>
                 </Link>
