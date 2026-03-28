@@ -1,3 +1,4 @@
+
 import { NextResponse } from 'next/server';
 import { nutritionCoachChat } from '@/ai/flows/nutrition-coach-chat';
 
@@ -21,9 +22,10 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('Meal Coach API Error:', error);
 
+    // Provide a more user-friendly message for rate limits (429)
     if (error.message === 'RATE_LIMIT_EXCEEDED' || error.message?.includes('429')) {
       return NextResponse.json(
-        { reply: "The AI coach is currently busy (Rate limit reached). Please wait a moment and try again." },
+        { reply: "The AI coach is currently very busy (Rate limit reached). Please wait about 60 seconds and try again. This helps us provide a free service to everyone!" },
         { status: 429 }
       );
     }

@@ -15,6 +15,9 @@ import { useUser, useFirestore, useCollection, useMemoFirebase } from "@/firebas
 import { collection, addDoc, deleteDoc, query, where, getDocs, doc } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 
+// Simple client-side cache to reduce API calls
+const suggestionCache: Record<string, FoodItemInfo[]> = {};
+
 export default function SearchPage() {
   const { user } = useUser();
   const db = useFirestore();
@@ -43,16 +46,22 @@ export default function SearchPage() {
     return favorites?.some(fav => fav.title === name);
   };
 
-  // Debounce logic for suggestions
+  // Debounce logic for suggestions - increased to 1000ms to save API quota
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (queryStr.trim().length > 1) {
-        fetchSuggestions(queryStr);
+      const q = queryStr.trim();
+      if (q.length > 2) {
+        if (suggestionCache[q]) {
+          setSuggestions(suggestionCache[q]);
+          setShowSuggestions(true);
+        } else {
+          fetchSuggestions(q);
+        }
       } else {
         setSuggestions([]);
         setShowSuggestions(false);
       }
-    }, 400);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [queryStr]);
@@ -74,7 +83,9 @@ export default function SearchPage() {
       const response = await fetch(`/api/food-search?q=${encodeURIComponent(q)}`);
       if (response.ok) {
         const data = await response.json();
-        setSuggestions(Array.isArray(data) ? data.slice(0, 5) : []);
+        const results = Array.isArray(data) ? data.slice(0, 5) : [];
+        setSuggestions(results);
+        suggestionCache[q] = results;
         setShowSuggestions(true);
       }
     } catch (error) {
@@ -86,7 +97,8 @@ export default function SearchPage() {
 
   const handleSearch = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!queryStr.trim()) return;
+    const q = queryStr.trim();
+    if (!q) return;
 
     setShowSuggestions(false);
     setIsLoading(true);
@@ -94,13 +106,19 @@ export default function SearchPage() {
     setError(null);
     
     try {
-      const response = await fetch(`/api/food-search?q=${encodeURIComponent(queryStr)}`);
+      const response = await fetch(`/api/food-search?q=${encodeURIComponent(q)}`);
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
+        if (response.status === 429) {
+          throw new Error("AI is currently busy processing other requests. Please wait about 30-60 seconds and try again.");
+        }
         throw new Error(errData.message || "The AI service is currently unavailable.");
       }
       const data = await response.json();
-      setResults(Array.isArray(data) ? data : []);
+      const results = Array.isArray(data) ? data : [];
+      setResults(results);
+      // Cache the full search too
+      suggestionCache[q] = results.slice(0, 5);
     } catch (error: any) {
       console.error("Search error:", error);
       setError(error.message || "Failed to retrieve food data. Please try again later.");
@@ -160,7 +178,7 @@ export default function SearchPage() {
         <div className="max-w-4xl mx-auto">
           <header className="mb-8">
             <h1 className="text-3xl font-bold mb-2 font-headline">Food Data Explorer</h1>
-            <p className="text-muted-foreground">Search our AI-powered database for detailed nutritional facts on any food or dish.</p>
+            <p className="text-muted-foreground">Search our database powered by Gemini 2.5 Flash for detailed nutritional facts.</p>
           </header>
           
           <div ref={searchRef} className="relative mb-10">
@@ -170,7 +188,7 @@ export default function SearchPage() {
                 <Input 
                   value={queryStr}
                   onChange={(e) => setQueryStr(e.target.value)}
-                  onFocus={() => queryStr.length > 1 && setShowSuggestions(true)}
+                  onFocus={() => queryStr.length > 2 && setShowSuggestions(true)}
                   placeholder="Search raw foods or cooked dishes..." 
                   className="pl-10 pr-10 h-12 text-lg bg-white shadow-sm rounded-xl focus-visible:ring-primary"
                 />
@@ -235,7 +253,7 @@ export default function SearchPage() {
             ) : error ? (
               <div className="text-center py-16 bg-destructive/5 rounded-xl border border-destructive/20 border-dashed">
                 <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-destructive mb-2">Service Error</h3>
+                <h3 className="text-xl font-semibold text-destructive mb-2">Service Busy</h3>
                 <p className="text-muted-foreground max-w-md mx-auto">{error}</p>
                 <Button variant="outline" className="mt-6" onClick={handleSearch}>Try Again</Button>
               </div>
