@@ -9,12 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { generateRecipeFromIngredients, type GenerateRecipeFromIngredientsOutput } from "@/ai/flows/generate-recipe-from-ingredients";
 import { ChefHat, Plus, X, Loader2, Clock, Users, ListChecks, Info, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useUser, useFirestore } from "@/firebase";
+import { collection, addDoc } from "firebase/firestore";
 
 export const maxDuration = 60;
 
 const dietOptions = ["Vegetarian", "Vegan", "Keto", "Low-Carb", "Gluten-Free", "High-Protein"];
 
 export default function RecipesPage() {
+  const { user } = useUser();
+  const db = useFirestore();
   const [ingredient, setIngredient] = useState("");
   const [ingredients, setIngredients] = useState<string[]>([]);
   const [selectedDiets, setSelectedDiets] = useState<string[]>([]);
@@ -54,17 +58,19 @@ export default function RecipesPage() {
       
       if (result.error) {
         setError(result.error);
-        toast({
-          variant: "destructive",
-          title: "Generation Error",
-          description: result.error,
-        });
       } else if (result.data) {
         setRecipe(result.data);
+        if (user && db) {
+          addDoc(collection(db, 'users', user.uid, 'activities'), {
+            type: 'recipe',
+            title: result.data.recipeName,
+            timestamp: new Date().toISOString(),
+            details: result.data
+          }).catch(err => console.error("Failed to log activity", err));
+        }
       }
     } catch (err: any) {
-      console.error("Recipe Error:", err);
-      setError("An unexpected error occurred. Please check your API configuration.");
+      setError("An unexpected error occurred.");
     } finally {
       setIsGenerating(false);
     }
@@ -77,66 +83,28 @@ export default function RecipesPage() {
         <div className="max-w-5xl mx-auto">
           <header className="text-center mb-10">
             <h1 className="text-3xl font-bold font-headline mb-4">AI Recipe Crafter</h1>
-            <p className="text-muted-foreground max-w-xl mx-auto">
-              Powered by Gemini 2.5 Flash. Turn your pantry items into healthy, personalized meals.
-            </p>
+            <p className="text-muted-foreground max-w-xl mx-auto">Turn pantry items into healthy meals with Gemini 2.5 Flash.</p>
           </header>
 
           <div className="grid gap-8 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-1">
               <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Your Ingredients</CardTitle>
-                </CardHeader>
+                <CardHeader><CardTitle className="text-lg">Ingredients</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
                   <form onSubmit={addIngredient} className="flex gap-2">
-                    <Input 
-                      value={ingredient}
-                      onChange={(e) => setIngredient(e.target.value)}
-                      placeholder="e.g. Tomato..." 
-                    />
-                    <Button type="submit" size="icon" variant="secondary">
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                    <Input value={ingredient} onChange={(e) => setIngredient(e.target.value)} placeholder="e.g. Eggs..." />
+                    <Button type="submit" size="icon" variant="secondary"><Plus className="h-4 w-4" /></Button>
                   </form>
-
                   <div className="flex flex-wrap gap-2">
                     {ingredients.map((ing) => (
                       <Badge key={ing} variant="secondary" className="pl-3 pr-1 py-1 gap-1">
-                        {ing}
-                        <button onClick={() => removeIngredient(ing)} className="hover:text-destructive">
-                          <X className="h-3 w-3" />
-                        </button>
+                        {ing}<button onClick={() => removeIngredient(ing)}><X className="h-3 w-3" /></button>
                       </Badge>
                     ))}
                   </div>
-
-                  <div className="pt-4 border-t">
-                    <h4 className="text-sm font-semibold mb-3">Diets</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {dietOptions.map((diet) => (
-                        <button
-                          key={diet}
-                          onClick={() => toggleDiet(diet)}
-                          className={`text-xs px-3 py-1.5 rounded-full transition-colors border ${
-                            selectedDiets.includes(diet) 
-                              ? "bg-primary text-primary-foreground" 
-                              : "bg-background"
-                          }`}
-                        >
-                          {diet}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <Button 
-                    className="w-full" 
-                    disabled={ingredients.length === 0 || isGenerating}
-                    onClick={generateRecipe}
-                  >
+                  <Button className="w-full" disabled={ingredients.length === 0 || isGenerating} onClick={generateRecipe}>
                     {isGenerating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ChefHat className="mr-2 h-4 w-4" />}
-                    {isGenerating ? "Crafting..." : "Generate Recipe"}
+                    Craft Recipe
                   </Button>
                 </CardContent>
               </Card>
@@ -144,75 +112,28 @@ export default function RecipesPage() {
 
             <div className="lg:col-span-2">
               {isGenerating ? (
-                <div className="h-full flex flex-col items-center justify-center p-20 bg-primary/5 rounded-2xl border-2 border-dashed border-primary/20">
-                  <ChefHat className="h-16 w-16 text-primary animate-bounce mb-4" />
-                  <h3 className="text-2xl font-bold">Creating your recipe...</h3>
-                  <p className="text-muted-foreground mt-2">Gemini 2.5 Flash is formulating the perfect dish.</p>
+                <div className="h-full flex flex-col items-center justify-center p-20 bg-primary/5 rounded-2xl border-2 border-dashed">
+                  <ChefHat className="h-16 w-16 text-primary animate-bounce" /><h3 className="text-2xl font-bold mt-4">Creating...</h3>
                 </div>
-              ) : error ? (
-                <Card className="h-full flex flex-col items-center justify-center p-12 text-center border-destructive/20 bg-destructive/5">
-                  <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
-                  <h3 className="text-xl font-semibold text-destructive mb-2">Cooking Failed</h3>
-                  <div className="text-muted-foreground text-sm bg-white p-4 rounded border text-left overflow-auto max-h-40">
-                    {error}
-                  </div>
-                </Card>
               ) : recipe ? (
-                <Card className="animate-in fade-in zoom-in duration-500 overflow-hidden shadow-xl border-none">
-                  <div className="bg-primary px-8 py-10 text-primary-foreground">
-                    <h2 className="text-3xl font-bold mb-4 font-headline">{recipe.recipeName}</h2>
-                    <div className="flex flex-wrap gap-6 opacity-90">
-                      <div className="flex items-center gap-2">
-                        <Clock className="h-5 w-5" />
-                        <span>Prep: {recipe.prepTime}</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        <span>Servings: {recipe.servings}</span>
-                      </div>
-                    </div>
+                <Card className="animate-in fade-in zoom-in overflow-hidden shadow-xl">
+                  <div className="bg-primary p-8 text-primary-foreground">
+                    <h2 className="text-3xl font-bold font-headline">{recipe.recipeName}</h2>
+                    <div className="flex gap-6 mt-4"><Clock className="h-5 w-5" /> {recipe.prepTime} <Users className="h-5 w-5" /> {recipe.servings}</div>
                   </div>
-                  
                   <CardContent className="p-8">
-                    <div className="grid md:grid-cols-5 gap-10">
-                      <div className="md:col-span-2">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                          <ListChecks className="h-5 w-5 text-primary" />
-                          Ingredients
-                        </h3>
-                        <ul className="space-y-2">
-                          {recipe.ingredientsList.map((item, i) => (
-                            <li key={i} className="flex items-start gap-3 text-sm">
-                              <span className="text-primary font-bold">•</span>
-                              {item}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      
-                      <div className="md:col-span-3">
-                        <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-                          <Info className="h-5 w-5 text-primary" />
-                          Instructions
-                        </h3>
-                        <div className="space-y-6">
-                          {recipe.instructions.map((step, i) => (
-                            <div key={i} className="flex gap-4">
-                              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs font-bold">
-                                {i + 1}
-                              </span>
-                              <p className="text-muted-foreground text-sm leading-relaxed">{step}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
+                    <h3 className="text-xl font-bold mb-4">Instructions</h3>
+                    <div className="space-y-4">
+                      {recipe.instructions.map((step, i) => (
+                        <div key={i} className="flex gap-4"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center text-xs">{i + 1}</span><p className="text-sm">{step}</p></div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
               ) : (
                 <div className="h-full flex flex-col items-center justify-center p-20 bg-muted/20 border-2 border-dashed rounded-2xl">
                   <ChefHat className="h-16 w-16 text-muted-foreground opacity-20 mb-4" />
-                  <h3 className="text-xl font-medium text-muted-foreground">Add ingredients to start</h3>
+                  <p className="text-muted-foreground">Add ingredients to start</p>
                 </div>
               )}
             </div>
