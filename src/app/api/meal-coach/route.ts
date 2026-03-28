@@ -1,6 +1,7 @@
-
 import { NextResponse } from 'next/server';
 import { nutritionCoachChat } from '@/ai/flows/nutrition-coach-chat';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * API Route for the AI Healthy Meal Coach.
@@ -23,15 +24,15 @@ export async function POST(request: Request) {
     console.error('Meal Coach API Error:', error);
 
     // Provide a more user-friendly message for rate limits (429)
-    if (error.message === 'RATE_LIMIT_EXCEEDED' || error.message?.includes('429')) {
+    if (error.message === 'RATE_LIMIT_EXCEEDED' || error.message?.includes('429') || error.message?.includes('quota')) {
       return NextResponse.json(
-        { reply: "The AI coach is currently very busy (Rate limit reached). Please wait about 60 seconds and try again. This helps us provide a free service to everyone!" },
+        { reply: "I'm currently assisting many users. Please wait about 60 seconds before your next question so I can give you my full attention!" },
         { status: 429 }
       );
     }
 
     return NextResponse.json(
-      { reply: error.message || "AI coach is temporarily unavailable. Please try again later." },
+      { reply: "I'm temporarily unavailable. Please try again in a few moments." },
       { status: 500 }
     );
   }

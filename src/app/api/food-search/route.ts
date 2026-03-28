@@ -5,14 +5,13 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Mapping of USDA Nutrient IDs to our internal fields.
- * Ref: https://fdc.nal.usda.gov/download-datasets.html
  */
 const NUTRIENT_MAP: Record<number, keyof FoodItemInfo> = {
   1008: 'calories',     // Energy
   1003: 'protein',      // Protein
-  1005: 'carbohydrates',// Carbohydrate, by difference
-  1004: 'fat',          // Total lipid (fat)
-  2000: 'sugar',        // Sugars, total including NLEA
+  1005: 'carbohydrates',// Carbohydrate
+  1004: 'fat',          // Total lipid
+  2000: 'sugar',        // Sugars
 };
 
 export async function GET(request: Request) {
@@ -25,16 +24,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    // 1. Try USDA FoodData Central API if key is available
+    // 1. Try USDA FoodData Central API first (if key exists) to save AI quota
     if (usdaApiKey && usdaApiKey !== '') {
       try {
         const usdaResponse = await fetch(
-          `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=5&api_key=${usdaApiKey}`
+          `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(query)}&pageSize=5&api_key=${usdaApiKey}`,
+          { next: { revalidate: 3600 } } // Cache USDA results for 1 hour
         );
 
         if (usdaResponse.ok) {
           const usdaData = await usdaResponse.json();
-          
           if (usdaData.foods && usdaData.foods.length > 0) {
             const mappedResults: FoodItemInfo[] = usdaData.foods.map((food: any) => {
               const info: any = {
@@ -48,43 +47,35 @@ export async function GET(request: Request) {
                 vitamins: [],
                 minerals: [],
                 ingredients: food.foodComponents?.map((c: any) => c.description) || [],
-                healthBenefits: ["High quality USDA verified data"],
+                healthBenefits: ["USDA verified data"],
                 risks: [],
                 category: food.foodCategory || "General Food",
               };
 
-              // Map nutrients
               if (food.foodNutrients) {
                 food.foodNutrients.forEach((n: any) => {
                   const field = NUTRIENT_MAP[n.nutrientId];
-                  if (field) {
-                    info[field] = n.value;
-                  }
+                  if (field) info[field] = n.value;
                 });
               }
-
               return info as FoodItemInfo;
             });
-
             return NextResponse.json(mappedResults);
           }
-        } else {
-          console.warn('USDA API request failed with status:', usdaResponse.status);
         }
       } catch (usdaError) {
-        console.error('USDA API Error:', usdaError);
-        // Fallback to AI if USDA fails
+        console.warn('USDA API Error, falling back to Gemini:', usdaError);
       }
     }
 
-    // 2. Fallback to Gemini AI (Genkit Flow)
+    // 2. Use Gemini AI via Genkit Flow
     const results = await searchFoods(query);
     return NextResponse.json(results);
 
   } catch (error: any) {
-    console.error('Food search API route caught error:', error);
+    console.error('Food search API route error:', error);
     
-    if (error.message === 'RATE_LIMIT_EXCEEDED') {
+    if (error.message === 'RATE_LIMIT_EXCEEDED' || error.message?.includes('429')) {
       return NextResponse.json({ 
         error: 'Rate Limit Exceeded',
         message: 'The AI service is temporarily busy. Please wait about 60 seconds and try again.' 

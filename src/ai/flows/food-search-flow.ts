@@ -32,18 +32,29 @@ const FoodSearchOutputSchema = z.object({
   foods: z.array(FoodItemSchema).describe('A list of matching food items.')
 });
 
-// Simple in-memory cache to reduce AI calls for the same item in a short period
+// Global caches to reduce AI calls (Server-side, shared within a warm instance)
+const searchCache = new Map<string, { data: FoodItemInfo[], timestamp: number }>();
 const detailCache = new Map<string, { data: FoodItemInfo, timestamp: number }>();
-const CACHE_TTL = 1000 * 60 * 10; // 10 minutes
+const CACHE_TTL = 1000 * 60 * 30; // 30 minutes
 
 /**
  * Searches for food items based on a query.
  * @param query The search query.
- * @returns A promise that resolves to an array of food items.
  */
 export async function searchFoods(query: string): Promise<FoodItemInfo[]> {
+  const cacheKey = query.toLowerCase().trim();
+  const cached = searchCache.get(cacheKey);
+  
+  if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+    return cached.data;
+  }
+
   try {
-    return await searchFoodsFlow(query);
+    const results = await searchFoodsFlow(query);
+    if (results && results.length > 0) {
+      searchCache.set(cacheKey, { data: results, timestamp: Date.now() });
+    }
+    return results;
   } catch (error: any) {
     console.error("searchFoods error:", error);
     if (error.message?.includes('429') || error.message?.includes('quota')) {
@@ -94,8 +105,6 @@ const searchFoodsFlow = ai.defineFlow(
 
 /**
  * Fetches comprehensive nutritional and health data for a specific food item.
- * @param idOrName The ID or name of the food item.
- * @returns A promise that resolves to the food item details, or null if not found.
  */
 export async function getFoodDetails(idOrName: string): Promise<FoodItemInfo | null> {
   const cacheKey = idOrName.toLowerCase().trim();
@@ -113,6 +122,7 @@ export async function getFoodDetails(idOrName: string): Promise<FoodItemInfo | n
     return result;
   } catch (error: any) {
     console.error("getFoodDetails error:", error);
+    // Propagate rate limit error to the UI
     if (error.message?.includes('429') || error.message?.includes('quota')) {
       throw new Error("RATE_LIMIT_EXCEEDED");
     }
